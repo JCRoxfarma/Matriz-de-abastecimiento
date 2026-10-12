@@ -46,7 +46,11 @@ export default function Contactos() {
   useEffect(() => { if (sesion) cargar() }, [sesion?.user?.id])
 
   function getContacto(nombre) {
-    return contactos.find(c => c.nombre === nombre) || null
+    const norm = s => (s || '').trim().toUpperCase().replace(/\s+/g, ' ')
+    const exacto = contactos.find(c => c.nombre === nombre)
+    if (exacto) return exacto
+    const n = norm(nombre)
+    return contactos.find(c => norm(c.nombre) === n) || null
   }
 
   function mostrarToast(msg, ok) {

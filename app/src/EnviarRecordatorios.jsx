@@ -19,6 +19,15 @@ function hace(iso) {
 
 const ALWAYS_CC = 'rramirez@roxfarma.com'
 
+const norm = s => (s || '').trim().toUpperCase().replace(/\s+/g, ' ')
+
+function buscarContacto(contactos, nombre) {
+  const exacto = contactos.find(c => c.nombre === nombre)
+  if (exacto) return exacto
+  const n = norm(nombre)
+  return contactos.find(c => norm(c.nombre) === n) || null
+}
+
 export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
   const [contactos, setContactos] = useState([])
   const [historial, setHistorial] = useState([])
@@ -29,13 +38,14 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
   const [enviando, setEnviando] = useState(null)
   const [resultado, setResultado] = useState({})
   const [cargando, setCargando] = useState(true)
+  const [errContactos, setErrContactos] = useState(null)
   const [aprobados, setAprobados] = useState({})
   const [confirmar, setConfirmar] = useState(false)
   const [asuntoEditado, setAsuntoEditado] = useState({})
 
   useEffect(() => {
     Promise.all([
-      cargarContactos().catch(() => []),
+      cargarContactos().catch(e => { setErrContactos(e.message); return [] }),
       cargarHistorial().catch(() => []),
     ]).then(([c, h]) => {
       setContactos(c)
@@ -70,7 +80,7 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
     return [...groups.entries()]
       .filter(([nombre]) => !bb || nombre.toLowerCase().includes(bb))
       .map(([nombre, filas]) => {
-        const contacto = contactos.find(c => c.nombre === nombre)
+        const contacto = buscarContacto(contactos, nombre)
         const atrasadas = filas.filter(r => r.dd != null && r.dd < 0).length
         const ultimoEnvio = historial.find(h => h.proveedor === nombre)
         return { nombre, filas, contacto, atrasadas, ultimoEnvio }
@@ -290,6 +300,12 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
 
           {cargando ? <div className="mdl-empty">Cargando contactos...</div> : (
             <>
+              {errContactos && (
+                <div className="rec-err" style={{ marginBottom: 10 }}>
+                  No se pudieron cargar los contactos: {errContactos}. Los correos no van a aparecer hasta que se resuelva.
+                </div>
+              )}
+
               <div className="rec-resumen">
                 <span>{fmt(porProveedor.length)} proveedores con entregas pendientes</span>
                 <span className="dim">
