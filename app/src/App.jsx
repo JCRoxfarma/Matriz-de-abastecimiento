@@ -12,6 +12,7 @@ import ImportIngresosButton from './ImportIngresosButton'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
 import SeguimientoOI from './SeguimientoOI'
+import VerConfirmaciones from './VerConfirmaciones'
 import Login from './Login'
 import './App.css'
 
@@ -47,6 +48,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [mostrarComunicar, setMostrarComunicar] = useState(false)
   const [mostrarEnviar, setMostrarEnviar] = useState(false)
+  const [mostrarConfirmaciones, setMostrarConfirmaciones] = useState(false)
   const [vista, setVista] = useState('oc')
 
   const [qInput, setQInput] = useState('')
@@ -321,6 +323,7 @@ export default function App() {
             {esEditor && <ImportIngresosButton onDone={cargar} />}
             <ExportButton />
             {esEditor && <button className="btn" onClick={() => setMostrarComunicar(true)}>Comunicar a almacen</button>}
+            <button className="btn" onClick={() => setMostrarConfirmaciones(true)}>Ver confirmaciones</button>
             {esEditor && <button className="btn" onClick={() => setMostrarEnviar(true)}>Enviar recordatorios</button>}
             <span className="count">{fmt(filtradas.length)} lineas | {fmt(filtradas.filter(r => r.abierto).length)} abiertas</span>
           </div>
@@ -362,6 +365,10 @@ export default function App() {
 
       {mostrarEnviar && (
         <EnviarRecordatorios rows={rowsOC} esEditor={esEditor} onClose={() => setMostrarEnviar(false)} />
+      )}
+
+      {mostrarConfirmaciones && (
+        <VerConfirmaciones rows={rowsOC} onClose={() => setMostrarConfirmaciones(false)} />
       )}
     </div>
   )

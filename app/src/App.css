@@ -309,3 +309,25 @@ tbody tr.sel{background:#f2f5f9}
   .conf-proveedor{padding:12px 16px}
   .conf-footer{padding:16px}
 }
+
+/* --- Ver Confirmaciones (panel interno) --- */
+.conf-resumen-bar{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.conf-stat{display:flex;flex-direction:column;padding:12px 18px;background:var(--bg);border-radius:8px;border:1px solid var(--line);min-width:120px}
+.conf-stat-grn{border-left:3px solid var(--grn);background:var(--grnbg)}
+.conf-stat-amb{border-left:3px solid var(--amb);background:var(--ambbg)}
+.conf-stat-num{font-size:22px;font-weight:700;color:var(--ink)}
+.conf-stat-lb{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px;font-weight:500}
+.conf-lista-prov{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto}
+.conf-prov{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.conf-prov-ok{border-color:var(--grn);background:var(--grnbg)}
+.conf-prov-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;gap:12px;flex-wrap:wrap}
+.conf-prov-head:hover{background:var(--bg)}
+.conf-prov-info{display:flex;align-items:center;gap:8px;flex:1;min-width:200px}
+.conf-prov-arrow{font-size:11px;color:var(--ink3);width:16px}
+.conf-prov-badge{font-size:11px;color:var(--ink3);background:var(--bg);padding:2px 8px;border-radius:10px;border:1px solid var(--line)}
+.conf-prov-status{display:flex;align-items:center;gap:10px}
+.conf-prov-pbar{width:80px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;display:inline-block}
+.conf-prov-pbar i{display:block;height:100%;border-radius:3px;transition:width .3s}
+.conf-prov-pct{font-size:12px;font-weight:600;color:var(--ink2);min-width:32px;text-align:right}
+.conf-pct-ok{color:var(--grn)}
+.conf-prov-detalle{padding:0 14px 14px;border-top:1px solid var(--line2);overflow-x:auto}
