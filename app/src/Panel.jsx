@@ -26,6 +26,15 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
     onSaved({ reabierta: true, estado_gestion: 'En seguimiento' })
   }
 
+  async function anular() {
+    if (!confirm('¿Anular esta orden? Ya no aparecerá como pendiente.')) return
+    const { error } = await supabase.from('programacion_oc')
+      .update({ estado_gestion: 'Orden Anulada', reabierta: false })
+      .eq('id_entrega', row.id_entrega)
+    if (error) { alert('No se pudo anular: ' + error.message); return }
+    onSaved({ estado_gestion: 'Orden Anulada', reabierta: false })
+  }
+
   async function guardar() {
     setSaving(true)
     const patch = { estado_gestion: ges, motivo_demora: mot || null, responsable_accion: resp || null, observaciones: com || null, fecha_confirmada: fecConf || null, ajuste_cantidad: Number(ajuste) || 0, motivo_ajuste: motAjuste || null }
@@ -138,7 +147,12 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
                 <div className="kv"><span>Motivo de demora</span><b>{row.motivo_demora || 'sin motivo'}</b></div>
                 <div className="kv"><span>Responsable</span><b>{row.responsable_accion || 'sin asignar'}</b></div>
                 <div className="kv"><span>Cerro el</span><b>{row.fecha_real_ingreso ? fdate(row.fecha_real_ingreso) : 'sin fecha'}</b></div>
-                <button className="reab" onClick={reabrir}>Reabrir linea para editar</button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button className="reab" onClick={reabrir}>Reabrir linea para editar</button>
+                  {row.estado_gestion !== 'Orden Anulada' && (
+                    <button className="reab" style={{ color: 'var(--red)', borderColor: 'var(--red)' }} onClick={anular}>Anular orden</button>
+                  )}
+                </div>
               </>
             ) : (
               <>
