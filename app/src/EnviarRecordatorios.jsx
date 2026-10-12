@@ -136,6 +136,7 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
         )
         await registrarEnvio(prov.nombre, prov.contacto.correo, prov.filas.length)
         setResultado(prev => ({ ...prev, [prov.nombre]: 'ok' }))
+        setAprobados(prev => ({ ...prev, [prov.nombre]: false }))
       } catch (err) {
         setResultado(prev => ({ ...prev, [prov.nombre]: err.message }))
       }
