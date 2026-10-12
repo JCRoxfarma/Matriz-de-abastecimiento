@@ -37,7 +37,13 @@ export default async function handler(req, res) {
 
     const tokenData = await tokenRes.json()
     if (!tokenRes.ok) {
-      return res.status(500).json({ error: 'Error obteniendo token de Azure: ' + (tokenData.error_description || tokenData.error || 'desconocido') })
+      const desc = tokenData.error_description || tokenData.error || 'desconocido'
+      const esTokenExpirado = desc.includes('AADSTS700082') || desc.includes('AADSTS50173') || desc.includes('expired')
+      const esSecretExpirado = desc.includes('AADSTS7000215') || desc.includes('client_secret')
+      let ayuda = ''
+      if (esTokenExpirado) ayuda = ' El refresh token expiro. Hay que volver a autorizar la app en Azure y actualizar OUTLOOK_REFRESH_TOKEN en Vercel.'
+      else if (esSecretExpirado) ayuda = ' El client secret expiro. Hay que renovarlo en Azure (App registrations > Certificates & secrets) y actualizar AZURE_CLIENT_SECRET en Vercel.'
+      return res.status(500).json({ error: 'Error de autenticacion con Outlook: ' + desc + ayuda })
     }
 
     const toRecipients = (Array.isArray(to) ? to : [to]).map(addr => ({
