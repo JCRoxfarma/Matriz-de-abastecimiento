@@ -3,9 +3,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Solo POST' })
   }
 
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    return res.status(500).json({ error: 'RESEND_API_KEY no esta configurada en Vercel. Ve a Settings > Environment Variables y agregala.' })
+  const { AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET, OUTLOOK_REFRESH_TOKEN } = process.env
+  if (!AZURE_CLIENT_ID || !AZURE_TENANT_ID || !AZURE_CLIENT_SECRET || !OUTLOOK_REFRESH_TOKEN) {
+    return res.status(500).json({ error: 'Faltan variables de Azure en Vercel (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET, OUTLOOK_REFRESH_TOKEN).' })
   }
 
   const { to, cc, subject, html } = req.body
@@ -20,28 +20,55 @@ export default async function handler(req, res) {
   if (!ccList.some(e => e.toLowerCase() === ALWAYS_CC)) ccList.push(ALWAYS_CC)
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const tokenRes = await fetch(
+      `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: AZURE_CLIENT_ID,
+          client_secret: AZURE_CLIENT_SECRET,
+          refresh_token: OUTLOOK_REFRESH_TOKEN,
+          grant_type: 'refresh_token',
+          scope: 'https://graph.microsoft.com/Mail.Send offline_access',
+        }),
+      }
+    )
+
+    const tokenData = await tokenRes.json()
+    if (!tokenRes.ok) {
+      return res.status(500).json({ error: 'Error obteniendo token de Azure: ' + (tokenData.error_description || tokenData.error || 'desconocido') })
+    }
+
+    const toRecipients = (Array.isArray(to) ? to : [to]).map(addr => ({
+      emailAddress: { address: addr },
+    }))
+    const ccRecipients = ccList.map(addr => ({
+      emailAddress: { address: addr },
+    }))
+
+    const sendRes = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.CORREO_REMITENTE || 'Roxfarma Compras <onboarding@resend.dev>',
-        to: Array.isArray(to) ? to : [to],
-        cc: ccList.length > 0 ? ccList : undefined,
-        subject,
-        html,
+        message: {
+          subject,
+          body: { contentType: 'HTML', content: html },
+          toRecipients,
+          ccRecipients: ccRecipients.length > 0 ? ccRecipients : undefined,
+        },
       }),
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.message || 'Error enviando correo' })
+    if (!sendRes.ok) {
+      const errData = await sendRes.json().catch(() => ({}))
+      return res.status(sendRes.status).json({ error: errData?.error?.message || 'Error enviando correo via Outlook' })
     }
 
-    return res.status(200).json({ id: data.id, ok: true })
+    return res.status(200).json({ ok: true })
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }
