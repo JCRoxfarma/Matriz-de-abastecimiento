@@ -3,7 +3,9 @@ import { fmt, fdate } from './lib/derive'
 import { obtenerSnapshotsActuales, obtenerMaterialesDeSnapshot, obtenerOcPorSku, obtenerIngresosPosterioresA } from './lib/explosionImporter'
 import { compararExplosiones } from './lib/explosionDiff'
 import { calcularCompraSugerida } from './lib/explosionCompra'
+import { obtenerStockDiario } from './lib/stockImporter'
 import ExplosionButton from './ExplosionButton'
+import StockButton from './StockButton'
 
 const fechaHora = s => s ? new Date(s).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 const mesLabel = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) : ''
@@ -20,6 +22,7 @@ export default function Explosion() {
   const [snaps, setSnaps] = useState({ actual: null, anterior: null })
   const [filas, setFilas] = useState(null)
   const [expandido, setExpandido] = useState(null)
+  const [stockInfo, setStockInfo] = useState(null)
 
   const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
@@ -37,8 +40,12 @@ export default function Explosion() {
     setLoading(true)
     setErr(null)
     try {
-      const { actual, anterior } = await obtenerSnapshotsActuales()
+      const [{ actual, anterior }, stockData] = await Promise.all([
+        obtenerSnapshotsActuales(),
+        obtenerStockDiario(),
+      ])
       setSnaps({ actual, anterior })
+      setStockInfo(stockData)
       if (actual && anterior) {
         const [matActual, matAnterior] = await Promise.all([
           obtenerMaterialesDeSnapshot(actual.id),
@@ -50,7 +57,7 @@ export default function Explosion() {
           obtenerOcPorSku(codigos),
           obtenerIngresosPosterioresA(codigos, actual.fecha_corte),
         ])
-        setFilas(calcularCompraSugerida(comparadas, ocPorSku, ingresosPorSku, actual.fecha_corte))
+        setFilas(calcularCompraSugerida(comparadas, ocPorSku, ingresosPorSku, actual.fecha_corte, stockData?.mapa))
       } else {
         setFilas(null)
       }
@@ -118,10 +125,16 @@ export default function Explosion() {
       <div className="bar">
         <ExplosionButton rol="actual" label="Cargar explosión nueva" onDone={cargar} />
         <ExplosionButton rol="anterior" label="Corregir explosión anterior" className="btn-subtle" onDone={cargar} />
+        <StockButton onDone={cargar} />
         {snaps.actual && (
           <span className="pct">
             Último snapshot: {snaps.actual.archivo} ({fechaHora(snaps.actual.creado_en)})
             {snaps.anterior && <> — comparado contra {snaps.anterior.archivo} ({fechaHora(snaps.anterior.creado_en)})</>}
+          </span>
+        )}
+        {stockInfo && (
+          <span className="pct" style={{ color: 'var(--grn)', fontWeight: 500 }}>
+            Stock del sistema: {fdate(stockInfo.fecha)}
           </span>
         )}
       </div>
@@ -222,9 +235,11 @@ export default function Explosion() {
                         </td>
                         <td className="num">
                           {fmt(f.stockEfectivo)}
-                          {f.ingresosPosterioresAlCorte > 0 && (
-                            <div className="pct" style={{ margin: '2px 0 0' }}>+{fmt(f.ingresosPosterioresAlCorte)} después del corte</div>
-                          )}
+                          {f.usaStockDiario
+                            ? <div className="pct" style={{ margin: '2px 0 0', color: 'var(--grn)' }}>stock del sistema</div>
+                            : f.ingresosPosterioresAlCorte > 0 && (
+                                <div className="pct" style={{ margin: '2px 0 0' }}>+{fmt(f.ingresosPosterioresAlCorte)} después del corte</div>
+                              )}
                         </td>
                         <td className="num">{fmt(f.consumoAnteriorTotal)}</td>
                         <td className="num">{fmt(f.consumoActualTotal)}</td>
@@ -278,6 +293,11 @@ export default function Explosion() {
                                 ))}
                               </tbody>
                             </table>
+                            {f.stockDiarioEntry && (
+                              <div className="pct" style={{ marginTop: 8 }}>
+                                Stock del sistema: E02 aprobados {fmt(f.stockDiarioEntry.e02)} · E01 cuarentena {fmt(f.stockDiarioEntry.e01)} · E24 externo {fmt(f.stockDiarioEntry.e24)}
+                              </div>
+                            )}
                             {f.ocEntregas.length > 0 && (
                               <div className="pct" style={{ marginTop: 8 }}>
                                 OC pendientes: {f.ocEntregas.map(e =>

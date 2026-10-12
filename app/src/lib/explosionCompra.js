@@ -81,7 +81,7 @@ function mesFabricacionEfectivo(mesFabOriginal, fechaReqOriginal, meses) {
   return { mesFab: proximo.mes, fechaReq }
 }
 
-export function calcularCompraSugerida(filas, ocPorSku, ingresosPorSku = new Map(), fechaCorte = null) {
+export function calcularCompraSugerida(filas, ocPorSku, ingresosPorSku = new Map(), fechaCorte = null, stockDiario = null) {
   return filas.map(f => {
     const tubo = esTubo(f.descripcion)
     const mermaPct = tubo ? MERMA_TUBO : mermaPorGrupo(f.grupo)
@@ -89,8 +89,9 @@ export function calcularCompraSugerida(filas, ocPorSku, ingresosPorSku = new Map
     const mesesCobertura = coberturaMesesPorGrupo(f.grupo)
     const necesidad = necesidadHastaCobertura(f.meses, mesesCobertura)
     const oc = ocPorSku.get(f.codigo) || { saldoPendiente: 0, fechaProgramada: null, entregas: [] }
-    const ingresosPosterioresAlCorte = ingresosPorSku.get(f.codigo) || 0
-    const stock = (f.stock || 0) + ingresosPosterioresAlCorte
+    const stockDiarioEntry = stockDiario?.get(f.codigo) || null
+    const ingresosPosterioresAlCorte = stockDiarioEntry ? 0 : (ingresosPorSku.get(f.codigo) || 0)
+    const stock = stockDiarioEntry ? stockDiarioEntry.total : ((f.stock || 0) + ingresosPosterioresAlCorte)
 
     const { mesFab, fechaReq } = mesFabricacionEfectivo(
       f.mesFabricacionProximo, f.fechaRequeridaIngreso, f.meses)
@@ -164,6 +165,8 @@ export function calcularCompraSugerida(filas, ocPorSku, ingresosPorSku = new Map
       ocEntregas: oc.entregas,
       fechaEntregaProgramada: oc.fechaProgramada,
       stockEfectivo: stock,
+      stockDiarioEntry,
+      usaStockDiario: !!stockDiarioEntry,
       ingresosPosterioresAlCorte,
       faltanteReal,
       compraSugerida,
