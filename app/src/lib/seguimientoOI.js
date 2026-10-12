@@ -19,7 +19,7 @@ export function etapasVisibles(incoterm) {
 }
 
 export function calcularEtapa(seg, row) {
-  if (row && row.fecha_real_ingreso) return 9
+  if (row && (row.fecha_real_ingreso || (!row.abierto && row.cant_ingresada > 0))) return 9
   if (!seg) return 1
   const inc = seg.incoterm
   if (!seg.fecha_disponibilidad) return 1
@@ -31,6 +31,7 @@ export function calcularEtapa(seg, row) {
   if (!(seg.numero_dua && seg.aprobacion_interna)) return 5
   if (!(seg.fecha_pago_derechos && seg.confirmacion_agente)) return 6
   if (!seg.carga_liberada) return 7
+  if (row && row.cant_ingresada > 0) return 8
   if (!seg.fecha_ingreso_almacen) return 8
   return 9
 }

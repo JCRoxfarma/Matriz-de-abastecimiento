@@ -51,7 +51,7 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
   const [expandido, setExpandido] = useState(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const etapaActual = calcularEtapa(form)
+  const etapaActual = calcularEtapa(form, row)
   const visibles = etapasVisibles(form.incoterm)
 
   function calcularDesdeEta() {
@@ -335,6 +335,15 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
                       </>}
 
                       {et.n === 8 && <>
+                        {row.cant_ingresada > 0 && (
+                          <div style={{ fontSize: 12, color: 'var(--grn)', marginBottom: 8, fontWeight: 500 }}>
+                            Ingresado: {fmt(row.cant_ingresada)} de {fmt(row.cant_programada)} ({(row.avance * 100).toFixed(0)}%)
+                            {row.saldo_pendiente > 0 && <span style={{ color: 'var(--amb)' }}> — faltan {fmt(row.saldo_pendiente)}</span>}
+                          </div>
+                        )}
+                        {row.fecha_real_ingreso && (
+                          <div className="kv"><span>Fecha real de ingreso</span><b style={{ color: 'var(--grn)' }}>{fdate(row.fecha_real_ingreso)}</b></div>
+                        )}
                         {esEditor ? <>
                           <div className="fld"><label>Fecha ingreso a almacén</label><input type="date" value={form.fecha_ingreso_almacen} onChange={e => set('fecha_ingreso_almacen', e.target.value)} /></div>
                           <div className="fld"><label>Observaciones</label><input type="text" value={form.observaciones_ingreso} onChange={e => set('observaciones_ingreso', e.target.value)} placeholder="Notas sobre el ingreso" /></div>
