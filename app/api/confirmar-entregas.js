@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from('programacion_oc')
       .select('id_entrega, oc, sku, descripcion, cant_programada, cant_ingresada, fecha_programada_ingreso, fecha_confirmada, estado_gestion, ajuste_cantidad')
-      .eq('proveedor', proveedor)
+      .ilike('proveedor', proveedor)
     if (error) return res.status(500).json({ error: error.message })
 
     const abiertas = (data || []).filter(r => {
@@ -82,7 +82,8 @@ export default async function handler(req, res) {
       .in('id_entrega', ids)
 
     const norm = s => (s || '').trim().toUpperCase()
-    const validos = (rows || []).filter(r => norm(r.proveedor) === proveedor)
+    const provNorm = norm(proveedor)
+    const validos = (rows || []).filter(r => norm(r.proveedor) === provNorm)
     const idsValidos = new Set(validos.map(r => r.id_entrega))
 
     const errores = []
