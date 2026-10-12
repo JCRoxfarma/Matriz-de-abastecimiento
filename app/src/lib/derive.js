@@ -36,7 +36,7 @@ export const SEM = {
 }
 export const EST_TAG = { Completo: 't-grn', Pendiente: 't-blu' }
 export const GES_TAG = { 'En seguimiento': 't-blu', Reprogramado: 't-amb', Atrasado: 't-red', Cerrado: 't-gry', 'Orden Anulada': 't-red' }
-export const CONF_TAG = { Pendiente: 't-amb', Confirmada: 't-grn', 'Reprogramada por proveedor': 't-red' }
+export const CONF_TAG = { Pendiente: 't-amb', Confirmada: 't-grn' }
 
 export const MOTIVOS = ['', 'Falta de stock proveedor', 'Demora producción proveedor', 'Demora logística / despacho', 'Ingreso parcial', 'Reprogramación interna']
 export const RESP = ['', 'Compras', 'Proveedor', 'Planeamiento', 'Almacén', 'Calidad']
@@ -84,8 +84,7 @@ export function enrich(r) {
   const fprog0 = hist.length ? hist[0].de : r.fecha_programada_ingreso
   const estado_confirmacion = !abierto ? null
     : !r.fecha_confirmada ? 'Pendiente'
-    : r.fecha_confirmada === r.fecha_programada_ingreso ? 'Confirmada'
-    : 'Reprogramada por proveedor'
+    : 'Confirmada'
   // La Gestion se recalcula sola, igual que los Dias: si ya no queda nada
   // pendiente (o alguien la cerro a mano), se ve Cerrado; si se paso la
   // fecha y sigue con saldo, Atrasado; si no, se respeta lo que haya

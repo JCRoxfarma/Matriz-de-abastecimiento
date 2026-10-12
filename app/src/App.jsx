@@ -213,7 +213,7 @@ export default function App() {
       }
       case 'estado_confirmacion':
         if (!r.estado_confirmacion) return <span className="dim">-</span>
-        return <span className={`tag ${CONF_TAG[r.estado_confirmacion] || 't-gry'}`}>{r.estado_confirmacion === 'Reprogramada por proveedor' ? 'Reprog. prov.' : r.estado_confirmacion}</span>
+        return <span className={`tag ${CONF_TAG[r.estado_confirmacion] || 't-gry'}`}>{r.estado_confirmacion}</span>
       case 'dd':
         if (r.dentroTolerancia) return <span className="dim">tolerancia</span>
         if (r.fueraTolerancia) return <span style={{ color: 'var(--red)', fontWeight: 500 }}>fuera de tolerancia</span>
@@ -314,7 +314,6 @@ export default function App() {
               <option value="">Toda confirmacion</option>
               <option value="Pendiente">Pendiente</option>
               <option value="Confirmada">Confirmada</option>
-              <option value="Reprogramada por proveedor">Reprogramada por proveedor</option>
             </select>
             <button className={`btn ${soloTol ? 'act' : ''}`} onClick={() => setSoloTol(v => !v)}>Solo tolerancia</button>
             <button className="btn" onClick={limpiar}>Limpiar</button>
