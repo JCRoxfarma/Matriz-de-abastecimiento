@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
 )
 
 function simpleHash(str) {
@@ -57,7 +57,6 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       proveedor,
-      _debug: { total_rows: (data || []).length, abiertas: abiertas.length },
       entregas: abiertas.map(r => ({
         id: r.id_entrega,
         oc: r.oc,
