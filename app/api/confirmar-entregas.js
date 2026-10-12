@@ -57,6 +57,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       proveedor,
+      _debug: { total_rows: (data || []).length, abiertas: abiertas.length },
       entregas: abiertas.map(r => ({
         id: r.id_entrega,
         oc: r.oc,
