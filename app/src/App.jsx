@@ -108,7 +108,7 @@ export default function App() {
     if (skip !== 'ges' && fGes && r.estado_gestion !== fGes) return false
     if (skip !== 'prov' && fProv && r.proveedor !== fProv) return false
     if (skip !== 'comp' && fComp && r.comprador !== fComp) return false
-    if (skip !== 'mes' && fMes && r.fecha_programada_ingreso?.slice(0, 7) !== fMes) return false
+    if (skip !== 'mes' && fMes && (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7) !== fMes) return false
     if (skip !== 'conf' && fConf && r.estado_confirmacion !== fConf) return false
     if (quick === 'abierto' && !r.abierto) return false
     if (quick === 'sinconf' && r.estado_confirmacion !== 'Pendiente') return false
@@ -131,7 +131,7 @@ export default function App() {
   , [rowsOC, q, fEst, fGes, fProv, fMes, fConf, quick, soloTol])
 
   const meses = useMemo(() => {
-    const claves = [...new Set(rowsOC.filter(r => matchRow(r, 'mes')).map(r => r.fecha_programada_ingreso?.slice(0, 7)).filter(Boolean))].sort()
+    const claves = [...new Set(rowsOC.filter(r => matchRow(r, 'mes')).map(r => (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7)).filter(Boolean))].sort()
     return claves.map(k => ({ valor: k, etiqueta: nombreMes(k) }))
   }, [rowsOC, q, fEst, fGes, fProv, fComp, fConf, quick, soloTol])
 
