@@ -3,7 +3,7 @@ import { fmt } from './lib/derive'
 import {
   cargarContactos, guardarContacto, cargarHistorial, registrarEnvio,
   generarAsunto, generarEmailHtml, enviarRecordatorio,
-  nombreCorto,
+  nombreCorto, generarToken,
 } from './lib/recordatorioService'
 
 function hace(iso) {
@@ -18,6 +18,11 @@ function hace(iso) {
 }
 
 const ALWAYS_CC = 'rramirez@roxfarma.com'
+const BASE_URL = window.location.origin
+
+function linkConfirmacion(proveedor) {
+  return `${BASE_URL}/confirmar?token=${encodeURIComponent(generarToken(proveedor))}`
+}
 
 const norm = s => (s || '').trim().toUpperCase().replace(/\s+/g, ' ')
 
@@ -124,7 +129,7 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
       if (resultado[prov.nombre] === 'ok') continue
       setEnviando(prov.nombre)
       setResultado(prev => ({ ...prev, [prov.nombre]: null }))
-      const html = generarEmailHtml(prov.nombre, prov.filas)
+      const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
       const asuntoBase = generarAsunto(prov.nombre, prov.filas)
       const asunto = asuntoEditado[prov.nombre] || asuntoBase
       try {
@@ -147,7 +152,7 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
   }
 
   async function copiarEmail(prov) {
-    const html = generarEmailHtml(prov.nombre, prov.filas)
+    const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
     try {
       const item = new ClipboardItem({
         'text/html': new Blob([html], { type: 'text/html' }),
@@ -199,7 +204,7 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
   if (vistaPrevia) {
     const prov = porProveedor.find(p => p.nombre === vistaPrevia)
     if (!prov) { setVistaPrevia(null); return null }
-    const html = generarEmailHtml(prov.nombre, prov.filas)
+    const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
     const asuntoBase = generarAsunto(prov.nombre, prov.filas)
     const asuntoActual = asuntoEditado[prov.nombre] ?? asuntoBase
     const ccProv = prov.contacto?.correo_cc

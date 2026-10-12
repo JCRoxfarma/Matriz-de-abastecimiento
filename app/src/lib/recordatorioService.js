@@ -65,7 +65,21 @@ export function generarAsunto(proveedor, filas) {
   return `Recordatorio de entregas pendientes - ${proveedor}`
 }
 
-export function generarEmailHtml(proveedor, filas) {
+export function generarToken(proveedor) {
+  const payload = proveedor.trim().toUpperCase()
+  const b64 = btoa(unescape(encodeURIComponent(payload)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  let hash = 0
+  const key = 'roxfarma-confirmar-2026'
+  const str = key + payload
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
+  }
+  const hmac = Math.abs(hash).toString(16).padStart(8, '0')
+  return `${b64}.${hmac}`
+}
+
+export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
   const filasHtml = filas
     .sort((a, b) => (a.fecha_programada_ingreso || '').localeCompare(b.fecha_programada_ingreso || ''))
     .map(r => {
@@ -126,6 +140,10 @@ export function generarEmailHtml(proveedor, filas) {
         </tbody>
       </table>
       <p>Total: <strong>${filas.length}</strong> entrega${filas.length > 1 ? 's' : ''} pendiente${filas.length > 1 ? 's' : ''}${atrasadas > 0 ? `, de las cuales <strong style="color:#dc2626">${atrasadas}</strong> ya pasaron su fecha programada` : ''}.</p>
+      ${linkConfirmacion ? `<div style="text-align:center;margin:24px 0">
+        <a href="${linkConfirmacion}" style="display:inline-block;background:#00167b;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600">Confirmar fechas de entrega</a>
+        <div style="font-size:11px;color:#98a2b3;margin-top:8px">Haga clic para confirmar o modificar las fechas directamente</div>
+      </div>` : ''}
       <p style="margin-top:16px">Favor confirmar que las entregas se realizaran en las fechas indicadas. De existir algun cambio o retraso, agradeceré nos lo comuniquen a la brevedad para poder coordinarlo.</p>
       <p style="margin-top:24px">Saludos cordiales,</p>
       <p style="margin:4px 0"><strong>Johany Cueto</strong><br>
