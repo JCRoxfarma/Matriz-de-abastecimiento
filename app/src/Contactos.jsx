@@ -5,6 +5,7 @@ import { fetchAll } from './lib/importer'
 import {
   cargarContactos, guardarContacto,
 } from './lib/recordatorioService'
+import * as XLSX from 'xlsx'
 import Login from './Login'
 import './App.css'
 
@@ -88,6 +89,24 @@ export default function Contactos() {
   const conCorreo = useMemo(() => proveedores.filter(p => { const c = getContacto(p); return c && c.correo }).length, [proveedores, contactos])
   const conCc = useMemo(() => proveedores.filter(p => { const c = getContacto(p); return c && c.correo_cc }).length, [proveedores, contactos])
 
+  function exportarExcel() {
+    const filas = proveedores.map(nombre => {
+      const c = getContacto(nombre)
+      return {
+        'Proveedor': nombre,
+        'Correo principal': c?.correo || '',
+        'Correos CC': c?.correo_cc || '',
+        'Telefono': c?.telefono || '',
+        'Estado': c?.correo ? 'Configurado' : 'Sin correo',
+      }
+    })
+    const ws = XLSX.utils.json_to_sheet(filas)
+    ws['!cols'] = [{ wch: 40 }, { wch: 35 }, { wch: 50 }, { wch: 18 }, { wch: 14 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Contactos')
+    XLSX.writeFile(wb, `Contactos_Proveedores_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   const filtrados = useMemo(() => {
     const q = buscar.toLowerCase()
     return proveedores.filter(p => {
@@ -134,6 +153,7 @@ export default function Contactos() {
           <option value="with">Con correo</option>
           <option value="without">Sin correo</option>
         </select>
+        <button className="btn" onClick={exportarExcel}>Exportar Excel</button>
       </div>
 
       {loading ? <div className="empty">Cargando proveedores...</div> : (
