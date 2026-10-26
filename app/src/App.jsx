@@ -275,7 +275,7 @@ export default function App() {
         <button className={`btn ${vista === 'explosion' ? 'act' : ''}`} onClick={() => setVista('explosion')}>Explosión de materiales</button>
       </div>
 
-      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion /> : <>
+      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>

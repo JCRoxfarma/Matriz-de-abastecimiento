@@ -6,6 +6,8 @@ import { calcularCompraSugerida } from './lib/explosionCompra'
 import { obtenerStockDiario } from './lib/stockImporter'
 import ExplosionButton from './ExplosionButton'
 import StockButton from './StockButton'
+import LeadTimeConfig from './LeadTimeConfig'
+import { obtenerLeadTimes, TIPO_LABEL } from './lib/leadTime'
 
 const fechaHora = s => s ? new Date(s).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 const mesLabel = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) : ''
@@ -13,28 +15,47 @@ const mesLabel = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('es-PE', 
 const CAT_TAG = { nuevo: 't-grn', aumento: 't-red', disminucion: 't-blu', sin_cambio: 't-gry', desaparecido: 't-gry' }
 const CAT_LABEL = { nuevo: 'Nuevo', aumento: 'Aumentó', disminucion: 'Disminuyó', sin_cambio: 'Sin cambio', desaparecido: 'Ya no aparece' }
 
-const ESTADO_TAG = { cubierto: 't-grn', a_tiempo: 't-grn', ajustado: 't-amb', en_riesgo: 't-red', sin_oc: 't-red', sin_dato: 't-gry', quiebre: 't-quiebre' }
-const ESTADO_LABEL = { cubierto: 'Cubierto', a_tiempo: 'A tiempo', ajustado: 'Ajustado', en_riesgo: 'En riesgo', sin_oc: 'Sin OC', sin_dato: 'Sin dato fabricación', quiebre: 'Ruptura de stock' }
+const ESTADO_TAG = { quiebre: 't-quiebre', no_llega: 't-red', oc_tarde: 't-red', pedir_ya: 't-red', pedir_pronto: 't-amb', sin_lead_time: 't-gry', con_tiempo: 't-grn', cubierto: 't-grn' }
+const ESTADO_LABEL = { quiebre: 'Ruptura de stock', no_llega: 'No llega a tiempo', oc_tarde: 'OC llega tarde', pedir_ya: 'Pedir ya', pedir_pronto: 'Pedir pronto', sin_lead_time: 'Sin lead time', con_tiempo: 'Con tiempo', cubierto: 'Cubierto' }
+const ESTADO_AYUDA = {
+  quiebre: 'El stock + OC no alcanza y la fecha requerida ya pasó.',
+  no_llega: 'Aún no se acaba, pero aunque se pida hoy no llega para la fecha requerida.',
+  oc_tarde: 'La OC pendiente está programada después de que se acaba el stock.',
+  pedir_ya: 'La fecha límite para emitir la OC vence en 7 días o menos.',
+  pedir_pronto: 'La fecha límite para emitir la OC vence en los próximos 30 días.',
+  sin_lead_time: 'Falta configurar el lead time de este tipo de material.',
+  con_tiempo: 'Hay que comprar, pero la fecha límite está a más de 30 días.',
+  cubierto: 'El stock + OC cubre la cobertura de su grupo.',
+}
 
 // Orden de urgencia para "Sugerencias de compra": primero lo que ya esta
-// en ruptura o en riesgo, al final lo que ya esta cubierto.
-const ESTADO_URGENCIA = { quiebre: 0, en_riesgo: 1, sin_oc: 2, ajustado: 3, sin_dato: 4, a_tiempo: 5, cubierto: 6 }
+// en ruptura o no llega, al final lo que ya esta cubierto.
+const ESTADO_URGENCIA = { quiebre: 0, no_llega: 1, oc_tarde: 2, pedir_ya: 3, pedir_pronto: 4, sin_lead_time: 5, con_tiempo: 6, cubierto: 7 }
+const ordenUrgencia = (a, b) => {
+  const p = ESTADO_URGENCIA[a.estadoAbastecimiento] - ESTADO_URGENCIA[b.estadoAbastecimiento]
+  if (p !== 0) return p
+  const l = (a.fechaLimitePedido || '9999').localeCompare(b.fechaLimitePedido || '9999')
+  if (l !== 0) return l
+  return (a.fechaRequeridaIngreso || '9999').localeCompare(b.fechaRequeridaIngreso || '9999')
+}
 
 const PESTANAS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'consumos', label: 'Comparar consumos' },
   { id: 'compras', label: 'Sugerencias de compra' },
+  { id: 'leadtime', label: 'Lead time' },
 ]
 
 const signo = n => n > 0 ? '+' : ''
 const mesCorto = s => new Date(s + 'T00:00:00').toLocaleDateString('es-PE', { month: 'short', year: '2-digit' }).replace('.', '')
 const rangoMeses = meses => meses.length === 0 ? '' : meses.length === 1 ? mesCorto(meses[0]) : `${mesCorto(meses[0])} – ${mesCorto(meses[meses.length - 1])}`
 
-export default function Explosion() {
+export default function Explosion({ esEditor }) {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [snaps, setSnaps] = useState({ actual: null, anterior: null })
-  const [filas, setFilas] = useState(null)
+  const [datos, setDatos] = useState(null)
+  const [leadTimes, setLeadTimes] = useState(null)
   const [expandido, setExpandido] = useState(null)
   const [stockInfo, setStockInfo] = useState(null)
   const [pestana, setPestana] = useState('resumen')
@@ -57,10 +78,12 @@ export default function Explosion() {
     setLoading(true)
     setErr(null)
     try {
-      const [{ actual, anterior }, stockData] = await Promise.all([
+      const [{ actual, anterior }, stockData, lt] = await Promise.all([
         obtenerSnapshotsActuales(),
         obtenerStockDiario(),
+        obtenerLeadTimes().catch(() => null),
       ])
+      setLeadTimes(lt)
       setSnaps({ actual, anterior })
       setStockInfo(stockData)
       if (actual && anterior) {
@@ -75,9 +98,9 @@ export default function Explosion() {
           obtenerOcPorSku(codigos),
           obtenerIngresosPosterioresA(codigos, actual.fecha_corte),
         ])
-        setFilas(calcularCompraSugerida(comparadas, ocPorSku, ingresosPorSku, actual.fecha_corte, stockData?.mapa))
+        setDatos({ comparadas, ocPorSku, ingresosPorSku, fechaCorte: actual.fecha_corte, stockMapa: stockData?.mapa })
       } else {
-        setFilas(null)
+        setDatos(null)
       }
     } catch (e) {
       setErr(e.message)
@@ -87,6 +110,16 @@ export default function Explosion() {
   }
 
   useEffect(() => { cargar() }, [])
+
+  async function recargarLeadTimes() {
+    setLeadTimes(await obtenerLeadTimes().catch(() => null))
+  }
+
+  // Se recalcula aparte de la carga para que, al cambiar un lead time, la
+  // tabla se actualice al instante sin volver a leer toda la explosion.
+  const filas = useMemo(() => datos
+    ? calcularCompraSugerida(datos.comparadas, datos.ocPorSku, datos.ingresosPorSku, datos.fechaCorte, datos.stockMapa, leadTimes)
+    : null, [datos, leadTimes])
 
   // Igual que en Seguimiento OC: espera un momento sin escribir antes de
   // aplicar la busqueda, para que el cuadro de texto responda al instante.
@@ -122,14 +155,10 @@ export default function Explosion() {
   const filasCompras = useMemo(() => base.filter(f => {
     if (fMesFab && f.mesFabricacionProximo !== fMesFab) return false
     if (fEstado && f.estadoAbastecimiento !== fEstado) return false
-    if (soloFaltante && f.faltanteReal <= 0) return false
+    if (soloFaltante && f.estadoAbastecimiento === 'cubierto') return false
     if (soloTardios && !f.pedidoTardio) return false
     return true
-  }).sort((a, b) => {
-    const p = ESTADO_URGENCIA[a.estadoAbastecimiento] - ESTADO_URGENCIA[b.estadoAbastecimiento]
-    if (p !== 0) return p
-    return (a.fechaRequeridaIngreso || '9999').localeCompare(b.fechaRequeridaIngreso || '9999')
-  }), [base, fMesFab, fEstado, soloFaltante, soloTardios])
+  }).sort(ordenUrgencia), [base, fMesFab, fEstado, soloFaltante, soloTardios])
 
   const kpis = useMemo(() => {
     if (!filas) return null
@@ -140,9 +169,12 @@ export default function Explosion() {
       disminucion: contarCat('disminucion'),
       desaparecido: contarCat('desaparecido'),
       requierenCompra: filas.filter(f => f.compraSugerida > 0).length,
-      enRiesgo: filas.filter(f => f.estadoAbastecimiento === 'en_riesgo').length,
       quiebre: filas.filter(f => f.estadoAbastecimiento === 'quiebre').length,
-      sinOc: filas.filter(f => f.estadoAbastecimiento === 'sin_oc').length,
+      noLlega: filas.filter(f => f.estadoAbastecimiento === 'no_llega').length,
+      ocTarde: filas.filter(f => f.estadoAbastecimiento === 'oc_tarde').length,
+      pedirYa: filas.filter(f => f.estadoAbastecimiento === 'pedir_ya').length,
+      pedirPronto: filas.filter(f => f.estadoAbastecimiento === 'pedir_pronto').length,
+      sinLeadTime: filas.filter(f => f.estadoAbastecimiento === 'sin_lead_time').length,
       tardios: filas.filter(f => f.pedidoTardio).length,
     }
   }, [filas])
@@ -154,12 +186,8 @@ export default function Explosion() {
       .sort((a, b) => b.variacionAbs - a.variacionAbs).slice(0, 8)
     const bajas = filas.filter(f => f.categoria === 'disminucion' || f.categoria === 'desaparecido')
       .sort((a, b) => a.variacionAbs - b.variacionAbs).slice(0, 8)
-    const urgentes = filas.filter(f => ['quiebre', 'en_riesgo', 'sin_oc'].includes(f.estadoAbastecimiento))
-      .sort((a, b) => {
-        const p = ESTADO_URGENCIA[a.estadoAbastecimiento] - ESTADO_URGENCIA[b.estadoAbastecimiento]
-        if (p !== 0) return p
-        return (a.fechaRequeridaIngreso || '9999').localeCompare(b.fechaRequeridaIngreso || '9999')
-      }).slice(0, 10)
+    const urgentes = filas.filter(f => ['quiebre', 'no_llega', 'oc_tarde', 'pedir_ya'].includes(f.estadoAbastecimiento))
+      .sort(ordenUrgencia).slice(0, 12)
     return { porVariacion, bajas, urgentes }
   }, [filas])
 
@@ -268,20 +296,29 @@ export default function Explosion() {
               <div className="kpis">
                 <div className="kpi r" onClick={() => irA('compras')}><div className="lb">Requieren compra</div><div className="vl">{kpis.requierenCompra}</div></div>
                 <div className="kpi r" onClick={() => irA('compras', { estado: 'quiebre' })}><div className="lb">Ruptura de stock</div><div className="vl">{kpis.quiebre}</div></div>
-                <div className="kpi r" onClick={() => irA('compras', { estado: 'en_riesgo' })}><div className="lb">En riesgo</div><div className="vl">{kpis.enRiesgo}</div></div>
-                <div className="kpi a" onClick={() => irA('compras', { estado: 'sin_oc' })}><div className="lb">Sin OC</div><div className="vl">{kpis.sinOc}</div></div>
-                <div className="kpi a" onClick={() => irA('compras', { tardios: true })}><div className="lb">Pedidos tardíos</div><div className="vl">{kpis.tardios}</div></div>
+                <div className="kpi r" onClick={() => irA('compras', { estado: 'no_llega' })}><div className="lb">No llega a tiempo</div><div className="vl">{kpis.noLlega}</div></div>
+                <div className="kpi r" onClick={() => irA('compras', { estado: 'oc_tarde' })}><div className="lb">OC llega tarde</div><div className="vl">{kpis.ocTarde}</div></div>
+                <div className="kpi r" onClick={() => irA('compras', { estado: 'pedir_ya' })}><div className="lb">Pedir esta semana</div><div className="vl">{kpis.pedirYa}</div></div>
+                <div className="kpi a" onClick={() => irA('compras', { estado: 'pedir_pronto' })}><div className="lb">Pedir en 30 días</div><div className="vl">{kpis.pedirPronto}</div></div>
+                <div className="kpi a" onClick={() => irA('compras', { tardios: true })}><div className="lb">Pedidos tardíos (planeamiento)</div><div className="vl">{kpis.tardios}</div></div>
               </div>
+              {(!leadTimes || kpis.sinLeadTime > 0) && (
+                <div className="lt-aviso" onClick={() => setPestana('leadtime')}>
+                  {!leadTimes
+                    ? 'Todavía no está configurado el lead time: falta crear sus tablas en Supabase. Ver la pestaña "Lead time".'
+                    : `${kpis.sinLeadTime} materiales que requieren compra no tienen lead time. Complétalo en la pestaña "Lead time" para saber cuándo pedirlos.`}
+                </div>
+              )}
 
-              <div className="expl-res">
+              <div className="expl-res" style={{ marginBottom: 12 }}>
                 <div className="expl-card expl-card-full">
                   <h3>Compras urgentes</h3>
                   {resumen.urgentes.length === 0
-                    ? <div className="dim">No hay materiales en ruptura, en riesgo ni sin OC.</div>
+                    ? <div className="dim">No hay materiales en ruptura, que no lleguen a tiempo, con OC tardía ni para pedir esta semana.</div>
                     : (
                       <table className="expl-mini">
                         <thead>
-                          <tr><th>Código</th><th>Descripción</th><th className="num">Compra sugerida</th><th>Fecha requerida</th><th>Estado</th></tr>
+                          <tr><th>Código</th><th>Descripción</th><th className="num">Compra sugerida</th><th>Pedir antes de</th><th>Fecha requerida</th><th>Estado</th></tr>
                         </thead>
                         <tbody>
                           {resumen.urgentes.map(f => (
@@ -289,15 +326,18 @@ export default function Explosion() {
                               <td className="mono">{f.codigo}</td>
                               <td><div className="dsc">{f.descripcion || ''}</div></td>
                               <td className="num">{f.compraSugerida > 0 ? fmt(f.compraSugerida) : <span className="dim">0</span>}</td>
+                              <td className="mono">{f.fechaLimitePedido ? fdate(f.fechaLimitePedido) : <span className="dim">-</span>}</td>
                               <td className="mono">{f.fechaRequeridaIngreso ? fdate(f.fechaRequeridaIngreso) : <span className="dim">-</span>}</td>
-                              <td><span className={`tag ${ESTADO_TAG[f.estadoAbastecimiento]}`}>{ESTADO_LABEL[f.estadoAbastecimiento]}</span></td>
+                              <td><span className={`tag ${ESTADO_TAG[f.estadoAbastecimiento]}`} title={ESTADO_AYUDA[f.estadoAbastecimiento]}>{ESTADO_LABEL[f.estadoAbastecimiento]}</span></td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     )}
                 </div>
+              </div>
 
+              <div className="expl-res">
                 <div className="expl-card">
                   <h3>Mayores aumentos de consumo</h3>
                   {resumen.porVariacion.length === 0
@@ -437,7 +477,7 @@ export default function Explosion() {
                   <option value="">Todos los estados</option>
                   {Object.keys(ESTADO_LABEL).map(e => <option key={e} value={e}>{ESTADO_LABEL[e]}</option>)}
                 </select>
-                <button className={`btn ${soloFaltante ? 'act' : ''}`} onClick={() => setSoloFaltante(v => !v)}>Solo con faltante</button>
+                <button className={`btn ${soloFaltante ? 'act' : ''}`} onClick={() => setSoloFaltante(v => !v)}>Ocultar cubiertos</button>
                 <button className={`btn ${soloTardios ? 'act' : ''}`} onClick={() => setSoloTardios(v => !v)}>Solo pedidos tardíos</button>
                 <button className="btn" onClick={limpiar}>Limpiar</button>
                 <span className="count">{fmt(filasCompras.length)} materiales</span>
@@ -456,14 +496,15 @@ export default function Explosion() {
                         <th className="stk stk-a"></th>
                         <th className="stk stk-b">Código</th>
                         <th className="stk stk-c">Descripción</th>
-                        <th>Grupo</th>
+                        <th>Tipo · origen</th>
                         <th className="num">Stock</th>
                         <th className="num">OC pendiente</th>
-                        <th className="num">Faltante real</th>
+                        <th>Alcanza hasta</th>
+                        <th className="num">Faltante</th>
                         <th className="num">Compra sugerida</th>
                         <th>Fecha requerida</th>
-                        <th>Fecha programada</th>
-                        <th className="num">Cobertura</th>
+                        <th className="num">Lead time</th>
+                        <th>Pedir antes de</th>
                         <th>Estado</th>
                       </tr>
                     </thead>
@@ -474,7 +515,12 @@ export default function Explosion() {
                             <td className="dim stk stk-a">{expandido === f.codigo ? '▾' : '▸'}</td>
                             <td className="mono stk stk-b">{f.codigo}</td>
                             <td className="stk stk-c"><div className="dsc">{f.descripcion || ''}</div></td>
-                            <td>{f.grupo ?? ''}</td>
+                            <td className="nw">
+                              {TIPO_LABEL[f.tipo]}
+                              <div className="pct" style={{ margin: '2px 0 0' }}>
+                                <span className={`tag ${f.origen === 'Importado' ? 't-blu' : 't-gry'}`}>{f.origen}</span>
+                              </div>
+                            </td>
                             <td className="num">
                               {fmt(f.stockEfectivo)}
                               {f.usaStockDiario
@@ -488,32 +534,45 @@ export default function Explosion() {
                               {f.ocEntregas.length === 1 && <div className="pct" style={{ margin: '2px 0 0' }}>OC {f.ocEntregas[0].oc}</div>}
                               {f.ocEntregas.length > 1 && <div className="pct" style={{ margin: '2px 0 0' }}>{f.ocEntregas.length} OC, ver detalle</div>}
                             </td>
+                            <td className="nw">
+                              {f.alcanzaHasta ? mesLabel(f.alcanzaHasta) : <span className="dim">-</span>}
+                              {f.alcanzaTodoElHorizonte && f.alcanzaHasta && <div className="pct" style={{ margin: '2px 0 0' }}>todo el horizonte</div>}
+                            </td>
                             <td className="num">{f.faltanteReal > 0 ? <b style={{ fontWeight: 500 }}>{fmt(f.faltanteReal)}</b> : <span className="dim">0</span>}</td>
                             <td className="num">
                               {f.compraSugerida > 0 ? <b style={{ fontWeight: 500 }}>{fmt(f.compraSugerida)}</b> : <span className="dim">0</span>}
                               {f.loteMinimoAplicado && <div className="pct" style={{ margin: '2px 0 0' }}>lote mínimo</div>}
                             </td>
                             <td className="mono">{f.fechaRequeridaIngreso ? fdate(f.fechaRequeridaIngreso) : <span className="dim">-</span>}</td>
-                            <td className="mono">{f.fechaEntregaProgramada ? fdate(f.fechaEntregaProgramada) : <span className="dim">-</span>}</td>
-                            <td className="num">
-                              {f.mesesCubiertos != null
-                                ? <span style={{ color: f.mesesCubiertos >= 2.5 ? 'var(--grn)' : f.mesesCubiertos >= 1 ? 'var(--amb)' : 'var(--red)', fontWeight: 500 }}>{f.mesesCubiertos} m</span>
-                                : <span className="dim">-</span>}
+                            <td className="num">{f.leadTime != null ? `${f.leadTime} d` : <span className="dim">-</span>}</td>
+                            <td className="mono">
+                              {f.fechaLimitePedido ? fdate(f.fechaLimitePedido) : <span className="dim">-</span>}
+                              {f.fechaLimitePedido && f.faltanteReal > 0 && (
+                                <div className="pct" style={{ margin: '2px 0 0' }}>
+                                  {f.diasParaPedir < 0 ? `venció hace ${-f.diasParaPedir} d` : f.diasParaPedir === 0 ? 'hoy' : `en ${f.diasParaPedir} d`}
+                                </div>
+                              )}
                             </td>
                             <td>
-                              <span className={`tag ${ESTADO_TAG[f.estadoAbastecimiento]}`}>{ESTADO_LABEL[f.estadoAbastecimiento]}</span>
-                              {f.pedidoTardio && <div style={{ marginTop: 4 }}><span className="tag t-quiebre">Tardío {f.diasAnticipacion}d</span></div>}
+                              <span className={`tag ${ESTADO_TAG[f.estadoAbastecimiento]}`} title={ESTADO_AYUDA[f.estadoAbastecimiento]}>{ESTADO_LABEL[f.estadoAbastecimiento]}</span>
                             </td>
                           </tr>
                           {expandido === f.codigo && (
                             <tr>
                               <td></td>
-                              <td colSpan={11}>
-                                <div className="pct" style={{ margin: '6px 0 8px' }}>
+                              <td colSpan={13}>
+                                <div className="pct" style={{ margin: '6px 0 4px', whiteSpace: 'normal' }}>{ESTADO_AYUDA[f.estadoAbastecimiento]}</div>
+                                <div className="pct" style={{ margin: '0 0 8px', whiteSpace: 'normal' }}>
+                                  Grupo: {f.grupo ?? '-'} (cubre {f.mesesCobertura ?? 'todo el horizonte'}{f.mesesCobertura ? ' meses' : ''} desde el mes siguiente)
+                                  {' · '}Necesidad: {fmt(f.necesidadCobertura)}
+                                  {' · '}Lead time: {f.leadTime != null ? `${f.leadTime} días (${f.leadTimeFuente === 'manual' ? 'propio del código' : `${TIPO_LABEL[f.tipo]}, ${f.origen}`})` : 'sin dato'}
+                                  {' · '}Origen: {f.origen} ({f.origenFuente === 'manual' ? 'puesto a mano' : f.origenFuente === 'oc' ? 'según última compra' : 'sin compras, se asume'})
+                                </div>
+                                <div className="pct" style={{ margin: '0 0 8px', whiteSpace: 'normal' }}>
                                   Cliente: {f.cliente || '-'}
                                   {' · '}Mes de fabricación: {f.mesFabricacionProximo ? mesLabel(f.mesFabricacionProximo) : '-'}
                                   {' · '}Merma: {f.mermaPct}%
-                                  {' · '}Anticipación: {f.diasAnticipacion != null ? `${f.diasAnticipacion} días` : '-'}
+                                  {' · '}Anticipación de planeamiento: {f.diasAnticipacion != null ? `${f.diasAnticipacion} días` : '-'}{f.pedidoTardio ? ' (lo pidió tarde)' : ''}
                                 </div>
                                 {detalleMeses(f)}
                                 {f.stockDiarioEntry && (
@@ -523,7 +582,7 @@ export default function Explosion() {
                                 )}
                                 {f.ocEntregas.length > 0 && (
                                   <div className="pct" style={{ marginTop: 8 }}>
-                                    OC pendientes: {f.ocEntregas.map(e =>
+                                    OC pendientes{f.ocLlegaTarde ? ' (llega después de que se acaba el stock)' : ''}: {f.ocEntregas.map(e =>
                                       `OC ${e.oc} — ${fmt(e.saldo)}${e.fecha ? ' — ' + fdate(e.fecha) : ''}`
                                     ).join(' · ')}
                                   </div>
@@ -544,6 +603,10 @@ export default function Explosion() {
                 </div>
               </div>
             </>
+          )}
+
+          {pestana === 'leadtime' && (
+            <LeadTimeConfig filas={filas} leadTimes={leadTimes} esEditor={esEditor} onCambio={recargarLeadTimes} />
           )}
         </>
       )}

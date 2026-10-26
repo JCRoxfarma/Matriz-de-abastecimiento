@@ -294,13 +294,25 @@ export async function obtenerMaterialesDeSnapshot(snapshotId) {
 // (ver CERRADAS en lib/derive.js). Tambien se guarda el detalle de OC por
 // entrega, para poder mostrar en pantalla cual OC exactamente cubre el
 // consumo, no solo el total.
+// Ademas guarda el origen (Local / Importado) de la ultima compra del
+// material, abierta o cerrada, para elegir su lead time.
 export async function obtenerOcPorSku(codigos) {
   const m = new Map()
   if (!codigos.length) return m
-  const data = await fetchAll('programacion_oc', 'oc,sku,saldo_pendiente,fecha_programada_ingreso,fecha_confirmada,estado_gestion', q => q.in('sku', codigos))
+  const data = await fetchAll('programacion_oc', 'oc,sku,saldo_pendiente,fecha_programada_ingreso,fecha_confirmada,estado_gestion,origen,tipo_documento,fecha_emision_oc', q => q.in('sku', codigos))
   for (const row of data) {
-    if (!m.has(row.sku)) m.set(row.sku, { saldoPendiente: 0, fechaProgramada: null, entregas: [] })
+    if (!m.has(row.sku)) m.set(row.sku, { saldoPendiente: 0, fechaProgramada: null, entregas: [], origen: null, fechaUltimaCompra: null })
     const acc = m.get(row.sku)
+    // Filas cargadas antes de que existiera "origen" solo tienen el tipo
+    // de documento: OI (las de Seguimiento OI) es importado, OC es local.
+    const origen = row.origen || (row.tipo_documento === 'OI' ? 'Importado' : row.tipo_documento === 'OC' ? 'Local' : null)
+    if (origen) {
+      const fechaCompra = row.fecha_emision_oc || row.fecha_programada_ingreso || ''
+      if (!acc.origen || fechaCompra > acc.fechaUltimaCompra) {
+        acc.origen = origen
+        acc.fechaUltimaCompra = fechaCompra
+      }
+    }
     const saldo = row.saldo_pendiente || 0
     if (saldo <= 0 || CERRADAS.includes(row.estado_gestion)) continue
     acc.saldoPendiente += saldo
