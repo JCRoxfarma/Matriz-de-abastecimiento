@@ -20,6 +20,24 @@ empaque. La usan compras, planeamiento y almacén.
 - El esquema de la base de datos vive en `supabase/schema.sql`, y las
   reglas de login y permisos en `supabase/auth.sql`.
 
+## Envío de correos: solo Microsoft 365 autorizado por TI (octubre 2026)
+
+- La app debe funcionar desde el entorno corporativo de Roxfarma, **sin
+  depender de credenciales personales** de nadie (nada de refresh tokens
+  de la cuenta de Johany ni de `/me/sendMail`).
+- El único método de envío permitido es **Microsoft 365 (Microsoft
+  Graph)** con el mecanismo que valide TI. TI está evaluando reutilizar el
+  secreto existente "Recordatorios" (vence el 29/09/2028).
+- **No crear credenciales nuevas ni configurar otros métodos de envío**
+  (Resend, SMTP, Gmail, etc.) sin validación de TI.
+- `app/api/enviar-recordatorio.js` ya está preparado en modo aplicación
+  (client credentials, envía desde un buzón de Roxfarma). Mientras falten
+  las variables `M365_*` en Vercel responde "pendiente de configuración" y
+  no envía nada; el botón **Copiar** (pegar en Outlook) sigue funcionando.
+  Detalle de lo que se le pide a TI en `docs/envio-correos-m365.md`.
+- No modificar funcionalidades que ya están operativas al trabajar en
+  otros módulos.
+
 ## Cómo se actualizan los datos
 
 Los datos "de verdad" viven en Supabase, no en el Excel. El Excel de Johany
