@@ -25,11 +25,30 @@ function agruparPorCodigo(filas) {
   return m
 }
 
-const sumaMeses = mat => [...mat.meses.values()].reduce((a, b) => a + b, 0)
+const sumaMeses = (mat, meses) => meses.reduce((a, mes) => a + (mat.meses.get(mes) || 0), 0)
+
+// Cada explosion cubre su propio rango de meses: la nueva puede empezar un
+// mes despues (el mes que ya paso sale) y llegar mucho mas lejos (ej. de
+// marzo a diciembre del año siguiente). Si se compararan los totales de
+// todos los meses, casi todo saldria como "Aumentó" solo por tener mas
+// meses, o como "Disminuyó" por el mes que salio. Por eso la variacion se
+// calcula solo con los meses que estan en las dos explosiones, y el
+// consumo de los meses que recien aparecen se muestra aparte.
+export function horizonteComparacion(filasAnterior, filasActual) {
+  const mesesAnterior = new Set(filasAnterior.map(f => f.mes))
+  const mesesActual = new Set(filasActual.map(f => f.mes))
+  return {
+    comunes: [...mesesActual].filter(m => mesesAnterior.has(m)).sort(),
+    nuevos: [...mesesActual].filter(m => !mesesAnterior.has(m)).sort(),
+    salieron: [...mesesAnterior].filter(m => !mesesActual.has(m)).sort(),
+  }
+}
 
 export function compararExplosiones(filasAnterior, filasActual) {
   const anterior = agruparPorCodigo(filasAnterior)
   const actual = agruparPorCodigo(filasActual)
+  const { comunes, nuevos } = horizonteComparacion(filasAnterior, filasActual)
+  const setComunes = new Set(comunes)
   const todosLosCodigos = new Set([...anterior.keys(), ...actual.keys()])
 
   const filas = []
@@ -45,11 +64,12 @@ export function compararExplosiones(filasAnterior, filasActual) {
     const meses = [...todosLosMeses].sort().map(mes => {
       const anteriorCant = matAnterior?.meses.get(mes) || 0
       const actualCant = matActual?.meses.get(mes) || 0
-      return { mes, anterior: anteriorCant, actual: actualCant, variacion: actualCant - anteriorCant }
+      return { mes, anterior: anteriorCant, actual: actualCant, variacion: actualCant - anteriorCant, comparable: setComunes.has(mes) }
     })
 
-    const consumoAnteriorTotal = matAnterior ? sumaMeses(matAnterior) : 0
-    const consumoActualTotal = matActual ? sumaMeses(matActual) : 0
+    const consumoAnteriorTotal = matAnterior ? sumaMeses(matAnterior, comunes) : 0
+    const consumoActualTotal = matActual ? sumaMeses(matActual, comunes) : 0
+    const consumoMesesNuevos = matActual ? sumaMeses(matActual, nuevos) : 0
     const variacionAbs = consumoActualTotal - consumoAnteriorTotal
     const variacionPct = consumoAnteriorTotal ? Math.round((variacionAbs / consumoAnteriorTotal) * 1000) / 10 : null
 
@@ -74,6 +94,7 @@ export function compararExplosiones(filasAnterior, filasActual) {
       fechaRequeridaIngreso: matActual ? matActual.fechaRequeridaIngreso : matAnterior.fechaRequeridaIngreso,
       consumoAnteriorTotal,
       consumoActualTotal,
+      consumoMesesNuevos,
       variacionAbs,
       variacionPct,
       categoria,

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { fmt, fdate } from './lib/derive'
 import { obtenerSnapshotsActuales, obtenerMaterialesDeSnapshot, obtenerOcPorSku, obtenerIngresosPosterioresA } from './lib/explosionImporter'
-import { compararExplosiones } from './lib/explosionDiff'
+import { compararExplosiones, horizonteComparacion } from './lib/explosionDiff'
 import { calcularCompraSugerida } from './lib/explosionCompra'
 import { obtenerStockDiario } from './lib/stockImporter'
 import ExplosionButton from './ExplosionButton'
@@ -27,6 +27,8 @@ const PESTANAS = [
 ]
 
 const signo = n => n > 0 ? '+' : ''
+const mesCorto = s => new Date(s + 'T00:00:00').toLocaleDateString('es-PE', { month: 'short', year: '2-digit' }).replace('.', '')
+const rangoMeses = meses => meses.length === 0 ? '' : meses.length === 1 ? mesCorto(meses[0]) : `${mesCorto(meses[0])} – ${mesCorto(meses[meses.length - 1])}`
 
 export default function Explosion() {
   const [loading, setLoading] = useState(true)
@@ -36,6 +38,7 @@ export default function Explosion() {
   const [expandido, setExpandido] = useState(null)
   const [stockInfo, setStockInfo] = useState(null)
   const [pestana, setPestana] = useState('resumen')
+  const [horizonte, setHorizonte] = useState({ comunes: [], nuevos: [], salieron: [] })
 
   const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
@@ -65,6 +68,7 @@ export default function Explosion() {
           obtenerMaterialesDeSnapshot(actual.id),
           obtenerMaterialesDeSnapshot(anterior.id),
         ])
+        setHorizonte(horizonteComparacion(matAnterior, matActual))
         const comparadas = compararExplosiones(matAnterior, matActual)
         const codigos = comparadas.map(f => f.codigo)
         const [ocPorSku, ingresosPorSku] = await Promise.all([
@@ -201,9 +205,9 @@ export default function Explosion() {
         {f.meses.map(m => (
           <tr key={m.mes}>
             <td>{fdate(m.mes)}</td>
-            <td className="num">{fmt(m.anterior)}</td>
-            <td className="num">{fmt(m.actual)}</td>
-            <td className="num">{signo(m.variacion)}{fmt(m.variacion)}</td>
+            <td className="num">{m.comparable || m.anterior ? fmt(m.anterior) : <span className="dim">no estaba</span>}</td>
+            <td className="num">{m.comparable || m.actual ? fmt(m.actual) : <span className="dim">ya no está</span>}</td>
+            <td className="num">{m.comparable ? <>{signo(m.variacion)}{fmt(m.variacion)}</> : <span className="dim">{horizonte.nuevos.includes(m.mes) ? 'mes nuevo' : 'mes que salió'}</span>}</td>
           </tr>
         ))}
       </tbody>
@@ -353,6 +357,12 @@ export default function Explosion() {
                 <span className="count">{fmt(filasConsumos.length)} materiales</span>
               </div>
 
+              <div className="pct" style={{ margin: '0 2px 10px' }}>
+                Se compara el consumo en firme de <b style={{ fontWeight: 500 }}>{rangoMeses(horizonte.comunes)}</b>, los meses que están en las dos explosiones.
+                {horizonte.nuevos.length > 0 && <> Los meses nuevos ({rangoMeses(horizonte.nuevos)}) se muestran aparte.</>}
+                {horizonte.salieron.length > 0 && <> Ya no se cuentan los meses que salieron ({rangoMeses(horizonte.salieron)}).</>}
+              </div>
+
               <div className="tw">
                 <div className="scroll">
                   <table className="expl-tbl">
@@ -368,6 +378,7 @@ export default function Explosion() {
                         <th className="num">Variación</th>
                         <th className="num">Variación %</th>
                         <th>Cambio</th>
+                        {horizonte.nuevos.length > 0 && <th className="num">Meses nuevos ({rangoMeses(horizonte.nuevos)})</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -388,11 +399,12 @@ export default function Explosion() {
                             <td className="num">{signo(f.variacionAbs)}{fmt(f.variacionAbs)}</td>
                             <td className="num">{f.variacionPct == null ? '' : `${signo(f.variacionPct)}${f.variacionPct}%`}</td>
                             <td><span className={`tag ${CAT_TAG[f.categoria]}`}>{CAT_LABEL[f.categoria]}</span></td>
+                            {horizonte.nuevos.length > 0 && <td className="num">{f.consumoMesesNuevos > 0 ? fmt(f.consumoMesesNuevos) : <span className="dim">0</span>}</td>}
                           </tr>
                           {expandido === f.codigo && (
                             <tr>
                               <td></td>
-                              <td colSpan={9}>
+                              <td colSpan={horizonte.nuevos.length > 0 ? 10 : 9}>
                                 {detalleMeses(f)}
                                 {f.revisarVersion && <div className="pct" style={{ marginTop: 8 }}>Clientes: {f.cliente}</div>}
                                 {(f.version1 || f.version2 || f.version3) && (

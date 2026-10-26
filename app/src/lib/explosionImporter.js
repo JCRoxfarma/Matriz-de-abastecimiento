@@ -56,10 +56,27 @@ function detectarColumnas(header) {
 
   const proyectadoInicio = unidadIdx + 1
   const firmeInicio = clienteIdx + 1
+  // Justo despues del bloque en firme viene el bloque de consumo
+  // acumulado, con los mismos meses. Si sus encabezados tambien se leen
+  // como mes, el conteo se detiene en cuanto un mes se repite, para no
+  // mezclar el acumulado con el firme.
   let mesesCount = 0
-  while (parseMesHeader(header[firmeInicio + mesesCount])) mesesCount++
+  const mesesVistos = new Set()
+  for (let mes = parseMesHeader(header[firmeInicio]); mes && !mesesVistos.has(mes); mes = parseMesHeader(header[firmeInicio + mesesCount])) {
+    mesesVistos.add(mes)
+    mesesCount++
+  }
   if (mesesCount === 0) {
     throw new Error(`No se pudo leer ningún mes de consumo en firme despues de la columna "Cliente" (encabezado: "${header[firmeInicio]}"). Puede que la plantilla haya cambiado de columnas.`)
+  }
+
+  // El bloque de consumo proyectado (despues de "Unidad") es estadistico y
+  // puede traer otra cantidad de meses que el bloque en firme, por eso se
+  // ubica cada mes por su propio encabezado y no por la misma posicion
+  // que el firme.
+  const proyectadoPorMes = new Map()
+  for (let i = proyectadoInicio; parseMesHeader(header[i]) && !proyectadoPorMes.has(parseMesHeader(header[i])); i++) {
+    proyectadoPorMes.set(parseMesHeader(header[i]), i)
   }
 
   const versionCols = []
@@ -67,7 +84,7 @@ function detectarColumnas(header) {
 
   return {
     tipo, codigo, descripcion, disponible, cuarentena, stock,
-    proyectadoInicio, cliente: clienteIdx, firmeInicio, mesesCount,
+    proyectadoPorMes, cliente: clienteIdx, firmeInicio, mesesCount,
     version1: versionCols[0], version2: versionCols[1], version3: versionCols[2], grupo,
   }
 }
@@ -194,7 +211,7 @@ export async function importarExplosion(file, rol, onStep) {
       materiales.push({
         ...base,
         mes: mesFechas[i],
-        consumo_proyectado: toNum(row[C.proyectadoInicio + i]),
+        consumo_proyectado: C.proyectadoPorMes.has(mesFechas[i]) ? toNum(row[C.proyectadoPorMes.get(mesFechas[i])]) : null,
         consumo_firme: toNum(row[C.firmeInicio + i]),
       })
     }
