@@ -2,13 +2,15 @@ import { supabase } from './supabaseClient'
 
 // Tipos de material para el lead time. Se detectan por palabras de la
 // descripcion, en este orden (el primero que calce gana: "TUBO ALUMINIO"
-// es tubo, no blister). Si un codigo cae en el tipo equivocado, se le pone
+// es tubo, no blister; una caja que dice "EMBALAJE" es embalaje, no
+// estuche). Si un codigo cae en el tipo equivocado, se le pone
 // su propio lead time en la pestana "Lead time".
 export const TIPOS = [
   { id: 'tubo', label: 'Tubos', re: /\bTUBOS?\b/ },
   { id: 'prospecto', label: 'Prospectos / insertos', re: /\b(PROSP|INSERT)/ },
   { id: 'etiqueta', label: 'Etiquetas', re: /\bETIQ/ },
-  { id: 'caja', label: 'Cajas / estuches', re: /\b(CJS?|CAJAS?|ESTUCHES?)\b/ },
+  { id: 'embalaje', label: 'Cajas de embalaje', re: /EMBALAJ/ },
+  { id: 'caja', label: 'Estuches', re: /\b(CJS?|CAJAS?|ESTUCHES?)\b/ },
   { id: 'frasco', label: 'Frascos', re: /\b(FCOS?|FRASCOS?)\b/ },
   { id: 'tapa', label: 'Tapas', re: /\b(TAPAS?|TAPON(ES)?)\b/ },
   { id: 'blister', label: 'Blíster / foil', re: /\b(BLISTER|FOIL|PVC)/ },
@@ -37,8 +39,10 @@ export async function obtenerLeadTimes() {
 }
 
 export async function guardarLeadTimeTipo(tipo, campos) {
+  // upsert y no update: un tipo agregado despues (ej. embalaje) todavia
+  // no tiene fila en la tabla hasta que se le pone su primer valor.
   const { error } = await supabase.from('lead_time_tipos')
-    .update({ ...campos, actualizado_en: new Date().toISOString() }).eq('tipo', tipo)
+    .upsert({ tipo, ...campos, actualizado_en: new Date().toISOString() })
   if (error) throw error
 }
 

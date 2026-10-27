@@ -23,7 +23,7 @@ create table if not exists lead_time_materiales (
 );
 
 insert into lead_time_tipos (tipo) values
-  ('caja'), ('etiqueta'), ('prospecto'), ('tubo'), ('frasco'), ('tapa'), ('blister'), ('otro')
+  ('embalaje'), ('caja'), ('etiqueta'), ('prospecto'), ('tubo'), ('frasco'), ('tapa'), ('blister'), ('otro')
 on conflict (tipo) do nothing;
 
 alter table lead_time_tipos enable row level security;
