@@ -58,7 +58,9 @@ export async function cargarOI() {
     const s = segMap.get(r.id_entrega) || null
     const enriched = enrich(r)
     const etapa = calcularEtapa(s, enriched)
-    return { ...enriched, seg: s, etapa, etapaLabel: etapaLabel(etapa) }
+    // estadoGestionBase: el estado tal cual esta en la base, para poder
+    // recalcular con enrich si despues cambia el ajuste de cantidad.
+    return { ...enriched, estadoGestionBase: r.estado_gestion, seg: s, etapa, etapaLabel: etapaLabel(etapa) }
   }))
   return rows
 }

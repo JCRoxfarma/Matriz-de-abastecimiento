@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fmt, fdate } from './lib/derive'
+import { fmt, fdate, enrich } from './lib/derive'
 import { cargarOI, ETAPAS, etapaLabel, calcularEtapa } from './lib/seguimientoOI'
 import PanelOI from './PanelOI'
 import { useSesion } from './lib/auth'
@@ -120,16 +120,17 @@ export default function SeguimientoOI() {
     else { setSortK(k); setSortD(1) }
   }
 
-  function actualizarFila(id, segPatch, nuevaFechaProg) {
+  function actualizarFila(id, segPatch, ocPatch) {
     setRows(prev => prev.map(r => {
       if (r.id_entrega !== id) return r
+      // Si cambio la fecha o el ajuste de cantidad, se recalculan saldo y
+      // estado igual que al cargar (enrich).
+      const base = ocPatch && Object.keys(ocPatch).length ? enrich({ ...r, estado_gestion: r.estadoGestionBase, ...ocPatch }) : r
       const newSeg = { ...(r.seg || {}), ...segPatch }
-      const etapa = calcularEtapa(newSeg, r)
+      const etapa = calcularEtapa(newSeg, base)
       const eta = newSeg.eta || null
       const diasEta = eta ? Math.round((new Date(eta + 'T00:00:00') - new Date()) / 864e5) : null
-      const updated = { ...r, seg: newSeg, etapa, etapaLabel: etapaLabel(etapa), incoterm: newSeg.incoterm || '', eta, diasEta }
-      if (nuevaFechaProg) updated.fecha_programada_ingreso = nuevaFechaProg
-      return updated
+      return { ...base, seg: newSeg, etapa, etapaLabel: etapaLabel(etapa), incoterm: newSeg.incoterm || '', eta, diasEta }
     }))
   }
 
@@ -169,7 +170,9 @@ export default function SeguimientoOI() {
       case 'proveedor': return <div className="prov">{r.proveedor || ''}</div>
       case 'comprador': return <span className={`nw ${!r.comprador ? 'dim' : ''}`}>{r.comprador || 'Sin asignar'}</span>
       case 'incoterm': return r.incoterm ? <span className="tag t-blu">{r.incoterm}</span> : <span className="dim">-</span>
-      case 'cant_programada': return fmt(r.cant_programada)
+      case 'cant_programada': return r.ajuste_cantidad
+        ? <>{fmt(r.progEfectivo)}<div className="pct" style={{ margin: '2px 0 0', color: 'var(--amb)' }}>ajustado {r.ajuste_cantidad > 0 ? '+' : ''}{fmt(r.ajuste_cantidad)}</div></>
+        : fmt(r.cant_programada)
       case 'cant_ingresada': return fmt(r.cant_ingresada)
       case 'saldo_pendiente': return r.saldo_pendiente > 0 ? <b style={{ fontWeight: 500 }}>{fmt(r.saldo_pendiente)}</b> : <span className="dim">0</span>
       case 'estado_ingreso': {
@@ -244,7 +247,7 @@ export default function SeguimientoOI() {
       )}
 
       {selected && (
-        <PanelOI row={selected} esEditor={esEditor} onClose={() => setSelectedId(null)} onSaved={(patch, nuevaFechaProg) => actualizarFila(selected.id_entrega, patch, nuevaFechaProg)} />
+        <PanelOI row={selected} esEditor={esEditor} onClose={() => setSelectedId(null)} onSaved={(patch, ocPatch) => actualizarFila(selected.id_entrega, patch, ocPatch)} />
       )}
     </>
   )

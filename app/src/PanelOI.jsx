@@ -45,6 +45,8 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
     observaciones_ingreso: s.observaciones_ingreso || '',
   })
   const [fechaProg, setFechaProg] = useState(row.fecha_programada_ingreso || '')
+  const [ajuste, setAjuste] = useState(row.ajuste_cantidad || 0)
+  const [motAjuste, setMotAjuste] = useState(row.motivo_ajuste || '')
   const [diasPostEta, setDiasPostEta] = useState(7)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -76,13 +78,23 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
     try {
       await guardarSeguimientoOI(row.id_entrega, patch)
       const fechaProgChanged = fechaProg && fechaProg !== row.fecha_programada_ingreso
-      if (fechaProgChanged) {
+      // La fecha y el ajuste de cantidad viven en programacion_oc (igual
+      // que en Seguimiento OC), no en seguimiento_oi.
+      const ocPatch = {}
+      if (fechaProgChanged) ocPatch.fecha_programada_ingreso = fechaProg
+      const nuevoAjuste = Number(ajuste) || 0
+      const nuevoMotivo = nuevoAjuste !== 0 ? (motAjuste || null) : null
+      if (nuevoAjuste !== (row.ajuste_cantidad || 0) || nuevoMotivo !== (row.motivo_ajuste || null)) {
+        ocPatch.ajuste_cantidad = nuevoAjuste
+        ocPatch.motivo_ajuste = nuevoMotivo
+      }
+      if (Object.keys(ocPatch).length) {
         const { error } = await supabase.from('programacion_oc')
-          .update({ fecha_programada_ingreso: fechaProg })
+          .update(ocPatch)
           .eq('id_entrega', row.id_entrega)
         if (error) throw error
       }
-      onSaved(patch, fechaProgChanged ? fechaProg : null)
+      onSaved(patch, ocPatch)
       setSaved(true)
       setTimeout(() => setSaved(false), 1400)
     } catch (err) {
@@ -119,7 +131,8 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
             <h3>Datos de la OI</h3>
             <div className="kv"><span>Proveedor</span><b>{row.proveedor || ''}</b></div>
             <div className="kv"><span>Comprador</span><b>{row.comprador || 'Sin asignar'}</b></div>
-            <div className="kv"><span>Cantidad programada</span><b>{fmt(row.cant_programada)}</b></div>
+            <div className="kv"><span>Cantidad programada</span><b>{fmt(row.cant_programada)}{row.ajuste_cantidad ? <span style={{ color: 'var(--amb)', fontSize: 12 }}> {row.ajuste_cantidad > 0 ? '+' : ''}{fmt(row.ajuste_cantidad)} ajuste = {fmt(row.progEfectivo)}</span> : ''}</b></div>
+            {!esEditor && row.ajuste_cantidad !== 0 && row.ajuste_cantidad != null && <div className="kv"><span>Ajuste excepcional</span><b style={{ color: 'var(--amb)' }}>{row.ajuste_cantidad > 0 ? '+' : ''}{fmt(row.ajuste_cantidad)}{row.motivo_ajuste ? ` (${row.motivo_ajuste})` : ''}</b></div>}
             <div className="kv"><span>Cantidad ingresada</span><b>{fmt(row.cant_ingresada)}</b></div>
             <div className="kv"><span>Saldo pendiente</span><b style={{ color: row.saldo_pendiente > 0 ? 'var(--red)' : 'var(--ink3)' }}>{fmt(row.saldo_pendiente)}</b></div>
             {esEditor ? (
@@ -140,6 +153,19 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
               </div>
             ) : (
               <div className="kv"><span>Fecha programada</span><b>{fdate(row.fecha_programada_ingreso)}</b></div>
+            )}
+            {esEditor && (
+              <div className="fld">
+                <label>Ajuste excepcional de cantidad</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input type="number" style={{ width: 100 }} value={ajuste} onChange={e => setAjuste(e.target.value)} />
+                  <span style={{ fontSize: 12, color: 'var(--ink3)' }}>Original: {fmt(row.cant_programada)} → Total: {fmt((row.cant_programada || 0) + (Number(ajuste) || 0))}</span>
+                </div>
+                {(Number(ajuste) || 0) !== 0 && (
+                  <input type="text" style={{ marginTop: 6 }} placeholder="Motivo del ajuste (ej. el proveedor despacha menos)" value={motAjuste} onChange={e => setMotAjuste(e.target.value)} />
+                )}
+                <div className="hint">Positivo para aumentar, negativo para reducir. Se guarda al presionar Guardar. El campo original del Excel no se modifica.</div>
+              </div>
             )}
             {row.fecha_real_ingreso && <div className="kv"><span>Fecha real de ingreso</span><b style={{ color: 'var(--grn)' }}>{fdate(row.fecha_real_ingreso)}</b></div>}
             <div className="kv"><span>Precio unitario</span><b>{fmtM(row.precio_unitario, row.moneda)}</b></div>

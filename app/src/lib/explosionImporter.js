@@ -299,7 +299,7 @@ export async function obtenerMaterialesDeSnapshot(snapshotId) {
 export async function obtenerOcPorSku(codigos) {
   const m = new Map()
   if (!codigos.length) return m
-  const data = await fetchAll('programacion_oc', 'oc,sku,saldo_pendiente,fecha_programada_ingreso,fecha_confirmada,estado_gestion,origen,tipo_documento,fecha_emision_oc', q => q.in('sku', codigos))
+  const data = await fetchAll('programacion_oc', 'oc,sku,cant_programada,ajuste_cantidad,cant_ingresada,fecha_programada_ingreso,fecha_confirmada,estado_gestion,origen,tipo_documento,fecha_emision_oc', q => q.in('sku', codigos))
   for (const row of data) {
     if (!m.has(row.sku)) m.set(row.sku, { saldoPendiente: 0, fechaProgramada: null, entregas: [], origen: null, fechaUltimaCompra: null })
     const acc = m.get(row.sku)
@@ -313,7 +313,10 @@ export async function obtenerOcPorSku(codigos) {
         acc.fechaUltimaCompra = fechaCompra
       }
     }
-    const saldo = row.saldo_pendiente || 0
+    // Mismo saldo que se ve en Seguimiento OC / OI (ver enrich en
+    // derive.js): incluye el ajuste excepcional de cantidad, que el saldo
+    // guardado en la base no tiene.
+    const saldo = Math.max(0, (row.cant_programada || 0) + (row.ajuste_cantidad || 0) - (row.cant_ingresada || 0))
     if (saldo <= 0 || CERRADAS.includes(row.estado_gestion)) continue
     acc.saldoPendiente += saldo
     const fechaEfectiva = row.fecha_confirmada || row.fecha_programada_ingreso
