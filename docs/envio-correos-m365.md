@@ -11,6 +11,22 @@ La app envía en **modo aplicación** (OAuth 2.0 *client credentials*): usa un
 registro de aplicación de Roxfarma en Microsoft Entra ID y manda el correo
 desde un buzón corporativo. No usa la cuenta ni la clave de ninguna persona.
 
+**Quién puede enviar:** solo una persona con sesión iniciada en la app y rol
+`editor` (hoy, Johany). El servidor valida la sesión antes de usar la
+credencial de Microsoft 365; sin sesión válida responde 401 y no envía nada.
+El envío es manual: la persona revisa y aprueba cada correo y presiona
+"Enviar". No hay envíos programados ni automáticos.
+
+**Dónde corre:** la app está publicada en Vercel (equipo Roxfarma_Compras).
+El envío lo hace una función de servidor de Vercel
+(`app/api/enviar-recordatorio.js`), no la laptop de nadie ni Claude.
+Claude Code solo se usó para escribir el código.
+
+**Dónde se guarda la credencial:** como variables de entorno del proyecto en
+Vercel (Settings → Environment Variables, tipo *Sensitive*). Solo las lee la
+función de servidor; no están en el código, ni en GitHub, ni llegan al
+navegador.
+
 Cada correo sale con copia a rramirez@roxfarma.com y queda guardado en
 "Elementos enviados" del buzón remitente.
 

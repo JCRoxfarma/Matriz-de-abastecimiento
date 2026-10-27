@@ -16,9 +16,39 @@
 
 const REQUERIDAS = ['M365_TENANT_ID', 'M365_CLIENT_ID', 'M365_CLIENT_SECRET', 'M365_BUZON_REMITENTE']
 
+// Solo puede enviar quien tiene sesion iniciada en la app con rol
+// "editor". Se valida el token de sesion de Supabase que manda el
+// navegador: Supabase dice de quien es el token y se lee su rol en
+// "perfiles"; si el token no es valido o el rol no es editor, se rechaza.
+// Sin esto, cualquiera que conozca la URL podria enviar correos desde el
+// buzon de Roxfarma.
+async function esEditor(req) {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+  const url = process.env.VITE_SUPABASE_URL
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY
+  if (!token || !url || !anonKey) return false
+  try {
+    const headers = { apikey: anonKey, Authorization: `Bearer ${token}` }
+    const u = await fetch(`${url}/auth/v1/user`, { headers })
+    if (!u.ok) return false
+    const { id } = await u.json()
+    if (!id) return false
+    const r = await fetch(`${url}/rest/v1/perfiles?select=rol&id=eq.${encodeURIComponent(id)}`, { headers })
+    if (!r.ok) return false
+    const filas = await r.json()
+    return Array.isArray(filas) && filas.length === 1 && filas[0].rol === 'editor'
+  } catch {
+    return false
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Solo POST' })
+  }
+
+  if (!(await esEditor(req))) {
+    return res.status(401).json({ error: 'Solo un usuario con rol editor y sesión iniciada puede enviar correos.' })
   }
 
   const faltan = REQUERIDAS.filter(k => !process.env[k])
