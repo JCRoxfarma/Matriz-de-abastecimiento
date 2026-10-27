@@ -1,5 +1,12 @@
 # Envío de recordatorios por Microsoft 365 — lo que se necesita de TI
 
+> **Actualización 27/10/2026:** Johany decidió usar el **permiso delegado**
+> de su propia cuenta (jcueto@roxfarma.com): la app solo puede enviar desde
+> ese buzón y no requiere aprobación de administrador. Se configura con
+> `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` y
+> `OUTLOOK_REFRESH_TOKEN` en Vercel. El modo aplicación descrito abajo
+> queda como alternativa si TI lo entrega más adelante.
+
 Estado: **pendiente de validación de TI.** El código ya está listo
 (`app/api/enviar-recordatorio.js`); solo falta que TI confirme el mecanismo
 y entregue los datos. Mientras tanto, los correos se envían con el botón

@@ -20,21 +20,26 @@ empaque. La usan compras, planeamiento y almacén.
 - El esquema de la base de datos vive en `supabase/schema.sql`, y las
   reglas de login y permisos en `supabase/auth.sql`.
 
-## Envío de correos: solo Microsoft 365 autorizado por TI (octubre 2026)
+## Envío de correos: Outlook desde la cuenta de Johany (octubre 2026)
 
-- La app debe funcionar desde el entorno corporativo de Roxfarma, **sin
-  depender de credenciales personales** de nadie (nada de refresh tokens
-  de la cuenta de Johany ni de `/me/sendMail`).
-- El único método de envío permitido es **Microsoft 365 (Microsoft
-  Graph)** con el mecanismo que valide TI. TI está evaluando reutilizar el
-  secreto existente "Recordatorios" (vence el 29/09/2028).
-- **No crear credenciales nuevas ni configurar otros métodos de envío**
-  (Resend, SMTP, Gmail, etc.) sin validación de TI.
-- `app/api/enviar-recordatorio.js` ya está preparado en modo aplicación
-  (client credentials, envía desde un buzón de Roxfarma). Mientras falten
-  las variables `M365_*` en Vercel responde "pendiente de configuración" y
-  no envía nada; el botón **Copiar** (pegar en Outlook) sigue funcionando.
-  Detalle de lo que se le pide a TI en `docs/envio-correos-m365.md`.
+- **Decisión de Johany (27/10/2026):** el envío automático usa el permiso
+  **delegado** Mail.Send de su propia cuenta (jcueto@roxfarma.com), vía
+  Microsoft Graph `/me/sendMail`. Solo puede enviar desde ese buzón, y no
+  requiere aprobación de administrador de TI. Reemplaza la decisión
+  anterior de esperar el permiso "de aplicación" de TI, que habría
+  permitido enviar como cualquier usuario y por eso TI lo objetó.
+- Variables en Vercel: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+  `AZURE_CLIENT_SECRET`, `OUTLOOK_REFRESH_TOKEN` (registro de aplicación
+  "Seguimiento ME - Recordatorios" del directorio de Roxfarma). El refresh
+  token más reciente se guarda en `correo_credenciales`
+  (`supabase/correo_credenciales.sql`, solo servidor con
+  `SUPABASE_SERVICE_ROLE_KEY`) para que no venza mientras se use.
+- `app/api/enviar-recordatorio.js` también soporta el modo aplicación
+  (variables `M365_*`) por si TI lo entrega más adelante. Detalle en
+  `docs/envio-correos-m365.md`.
+- Solo un usuario con sesión iniciada y rol `editor` puede llamar a la API
+  de envío: no quitar esa validación.
+- **No configurar otros métodos de envío** (Resend, SMTP, Gmail, etc.).
 - No modificar funcionalidades que ya están operativas al trabajar en
   otros módulos.
 
