@@ -29,11 +29,13 @@ empaque. La usan compras, planeamiento y almacén.
   anterior de esperar el permiso "de aplicación" de TI, que habría
   permitido enviar como cualquier usuario y por eso TI lo objetó.
 - Variables en Vercel: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
-  `AZURE_CLIENT_SECRET`, `OUTLOOK_REFRESH_TOKEN` (registro de aplicación
-  "Seguimiento ME - Recordatorios" del directorio de Roxfarma). El refresh
-  token más reciente se guarda en `correo_credenciales`
-  (`supabase/correo_credenciales.sql`, solo servidor con
-  `SUPABASE_SERVICE_ROLE_KEY`) para que no venza mientras se use.
+  `AZURE_CLIENT_SECRET` (registro de aplicación "Seguimiento ME -
+  Recordatorios" del directorio de Roxfarma) y `SUPABASE_SERVICE_ROLE_KEY`.
+  La autorización de la cuenta se obtiene con el botón **Autorizar
+  Outlook** de Enviar recordatorios (`api/outlook-autorizar.js` →
+  `api/outlook-callback.js`, que solo acepta jcueto@roxfarma.com) y se
+  guarda en `correo_credenciales` (`supabase/correo_credenciales.sql`,
+  solo servidor). Cada envío la renueva, así no vence mientras se use.
 - `app/api/enviar-recordatorio.js` también soporta el modo aplicación
   (variables `M365_*`) por si TI lo entrega más adelante. Detalle en
   `docs/envio-correos-m365.md`.

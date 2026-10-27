@@ -47,7 +47,16 @@ export default function App() {
   const [err, setErr] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [mostrarComunicar, setMostrarComunicar] = useState(false)
-  const [mostrarEnviar, setMostrarEnviar] = useState(false)
+  // Al volver del inicio de sesion con Microsoft ("Autorizar Outlook"), la
+  // URL trae ?outlook=ok|error: se abre Enviar recordatorios con el aviso
+  // y se limpia la URL.
+  const [avisoOutlook] = useState(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (!p.has('outlook')) return null
+    window.history.replaceState(null, '', window.location.pathname)
+    return { ok: p.get('outlook') === 'ok', msg: p.get('msg') }
+  })
+  const [mostrarEnviar, setMostrarEnviar] = useState(!!avisoOutlook)
   const [mostrarConfirmaciones, setMostrarConfirmaciones] = useState(false)
   const [vista, setVista] = useState('oc')
 
@@ -364,7 +373,7 @@ export default function App() {
       )}
 
       {mostrarEnviar && (
-        <EnviarRecordatorios rows={rowsOC} esEditor={esEditor} onClose={() => setMostrarEnviar(false)} />
+        <EnviarRecordatorios rows={rowsOC} esEditor={esEditor} avisoOutlook={avisoOutlook} onClose={() => setMostrarEnviar(false)} />
       )}
 
       {mostrarConfirmaciones && (

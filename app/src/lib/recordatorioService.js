@@ -172,6 +172,26 @@ export async function enviarRecordatorio(to, cc, subject, html) {
   return data
 }
 
+// --- Autorizacion de Outlook (modo delegado, ver api/outlook-autorizar.js) ---
+
+async function llamarOutlookAutorizar(method) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/outlook-autorizar', {
+    method,
+    headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Error consultando Outlook')
+  return data
+}
+
+export const estadoOutlook = () => llamarOutlookAutorizar('GET')
+
+export async function autorizarOutlook() {
+  const { url } = await llamarOutlookAutorizar('POST')
+  window.location.href = url
+}
+
 // --- Utilidad de mes ---
 
 export function claveMes(offset) {

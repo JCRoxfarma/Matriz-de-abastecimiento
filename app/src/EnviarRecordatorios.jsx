@@ -3,7 +3,7 @@ import { fmt } from './lib/derive'
 import {
   cargarContactos, guardarContacto, cargarHistorial, registrarEnvio,
   generarAsunto, generarEmailHtml, enviarRecordatorio,
-  nombreCorto, generarToken,
+  nombreCorto, generarToken, estadoOutlook, autorizarOutlook,
 } from './lib/recordatorioService'
 
 function hace(iso) {
@@ -33,7 +33,7 @@ function buscarContacto(contactos, nombre) {
   return contactos.find(c => norm(c.nombre) === n) || null
 }
 
-export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
+export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onClose }) {
   const [contactos, setContactos] = useState([])
   const [historial, setHistorial] = useState([])
   const [rango, setRango] = useState('todas')
@@ -47,6 +47,22 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
   const [aprobados, setAprobados] = useState({})
   const [confirmar, setConfirmar] = useState(false)
   const [asuntoEditado, setAsuntoEditado] = useState({})
+  const [outlook, setOutlook] = useState(null)
+  const [autorizando, setAutorizando] = useState(false)
+
+  useEffect(() => {
+    if (esEditor) estadoOutlook().then(setOutlook).catch(e => setOutlook({ error: e.message }))
+  }, [esEditor])
+
+  async function clickAutorizar() {
+    setAutorizando(true)
+    try {
+      await autorizarOutlook()
+    } catch (e) {
+      alert(e.message)
+      setAutorizando(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -288,6 +304,24 @@ export default function EnviarRecordatorios({ rows, esEditor, onClose }) {
           <button className="btn" onClick={onClose}>Cerrar</button>
         </div>
         <div className="mdl-b">
+          {avisoOutlook && (
+            <div className={`rec-outlook ${avisoOutlook.ok ? 'ok' : 'err'}`}>
+              {avisoOutlook.ok ? 'Listo: tu cuenta de Outlook quedó autorizada para enviar.' : `No se pudo autorizar Outlook: ${avisoOutlook.msg || 'error desconocido'}`}
+            </div>
+          )}
+          {esEditor && outlook && (
+            <div className="rec-outlook">
+              {outlook.error ? <span>Outlook: {outlook.error}</span>
+                : !outlook.configurado ? <span>Envío por Outlook: falta configurar en Vercel ({outlook.faltan.join(', ')}).</span>
+                : outlook.autorizado ? <span>Envío desde <b>{outlook.cuenta || outlook.cuentaEsperada}</b>{outlook.actualizado_en ? ` · autorizado ${hace(outlook.actualizado_en)}` : ''}</span>
+                : <span>Falta autorizar tu cuenta de Outlook ({outlook.cuentaEsperada}) para enviar.</span>}
+              {outlook.configurado && !outlook.error && (
+                <button className="btn-sm" onClick={clickAutorizar} disabled={autorizando}>
+                  {autorizando ? 'Abriendo Microsoft…' : outlook.autorizado ? 'Volver a autorizar' : 'Autorizar Outlook'}
+                </button>
+              )}
+            </div>
+          )}
           <div className="mdl-ctrl">
             <select value={rango} onChange={e => setRango(e.target.value)}>
               <option value="todas">Todas las pendientes</option>

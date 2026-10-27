@@ -11,6 +11,7 @@
 create table if not exists correo_credenciales (
   id int primary key check (id = 1),
   refresh_token text not null,
+  cuenta text,
   actualizado_en timestamptz not null default now()
 );
 
