@@ -33,7 +33,7 @@ empaque. La usan compras, planeamiento y almacén.
   Recordatorios" del directorio de Roxfarma) y `SUPABASE_SERVICE_ROLE_KEY`.
   La autorización de la cuenta se obtiene con el botón **Autorizar
   Outlook** de Enviar recordatorios (`api/outlook-autorizar.js` →
-  `api/outlook-callback.js`, que solo acepta jcueto@roxfarma.com) y se
+  `api/outlook/callback.js`, que solo acepta jcueto@roxfarma.com) y se
   guarda en `correo_credenciales` (`supabase/correo_credenciales.sql`,
   solo servidor). Cada envío la renueva, así no vence mientras se use.
 - `app/api/enviar-recordatorio.js` también soporta el modo aplicación

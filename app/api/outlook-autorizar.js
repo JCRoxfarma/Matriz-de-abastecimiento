@@ -2,7 +2,7 @@
 //   GET  -> estado: si ya hay una autorizacion guardada y de que cuenta.
 //   POST -> devuelve la direccion de inicio de sesion de Microsoft; el
 //           navegador va ahi, Johany entra con su cuenta, y Microsoft la
-//           devuelve a /api/outlook-callback, que guarda la autorizacion.
+//           devuelve a /api/outlook/callback, que guarda la autorizacion.
 
 import { esEditor, supabaseServidor, leerCredencial, crearState, urlRegreso, SCOPES_DELEGADO, CUENTA_OUTLOOK } from './_lib/outlook.js'
 

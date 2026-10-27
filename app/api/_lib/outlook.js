@@ -1,5 +1,5 @@
 // Piezas compartidas por las funciones de correo (enviar-recordatorio,
-// outlook-autorizar, outlook-callback). Vercel no publica como ruta los
+// outlook-autorizar, outlook/callback). Vercel no publica como ruta los
 // archivos que empiezan con "_", asi que esto no es un endpoint.
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
@@ -65,7 +65,7 @@ export async function guardarCredencial(sb, refreshToken, cuenta) {
 }
 
 // "state" del inicio de sesion con Microsoft: lleva la hora y va firmado
-// con el secreto de la aplicacion, para que el regreso (outlook-callback)
+// con el secreto de la aplicacion, para que el regreso (outlook/callback)
 // solo acepte inicios de sesion que empezaron desde la app hace poco.
 const firmar = texto => createHmac('sha256', process.env.AZURE_CLIENT_SECRET || '').update(texto).digest('base64url')
 
@@ -91,5 +91,5 @@ export function stateValido(state, maxMinutos = 15) {
 // aplicacion de Microsoft (Autenticacion > Web > URI de redireccion).
 export function urlRegreso(req) {
   const host = req.headers['x-forwarded-host'] || req.headers.host
-  return `https://${host}/api/outlook-callback`
+  return `https://${host}/api/outlook/callback`
 }

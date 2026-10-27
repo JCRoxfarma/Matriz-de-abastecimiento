@@ -1,16 +1,16 @@
 # Envío de recordatorios por Microsoft 365 — lo que se necesita de TI
 
-> **Actualización 27/10/2026:** Johany decidió usar el **permiso delegado**
-> de su propia cuenta (jcueto@roxfarma.com): la app solo puede enviar desde
-> ese buzón y no requiere aprobación de administrador. Se configura con
-> `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` y
-> `OUTLOOK_REFRESH_TOKEN` en Vercel. El modo aplicación descrito abajo
-> queda como alternativa si TI lo entrega más adelante.
-
-Estado: **pendiente de validación de TI.** El código ya está listo
-(`app/api/enviar-recordatorio.js`); solo falta que TI confirme el mecanismo
-y entregue los datos. Mientras tanto, los correos se envían con el botón
-**Copiar** y se pegan en Outlook.
+> **Actualización 27/10/2026:** se usa el **permiso delegado** Mail.Send de
+> la cuenta de Johany (jcueto@roxfarma.com): la app solo puede enviar desde
+> ese buzón. TI (Kevin Bartra, HelpDesk) aprobó el enfoque y se encarga de:
+> retirar Mail.Send de aplicación, agregar Mail.Send delegado, registrar el
+> URI de redirección Web `https://matriz-de-abastecimiento-kappa.vercel.app/api/outlook/callback`,
+> restringir la aplicación a usuarios autorizados y crear un secreto nuevo
+> que TI carga directamente en Vercel como `AZURE_CLIENT_SECRET` (la
+> directiva del inquilino no deja que Johany cree secretos).
+>
+> Luego Johany usa el botón **Autorizar Outlook** de Enviar recordatorios.
+> El modo aplicación descrito abajo queda solo como referencia.
 
 ## Cómo funciona
 

@@ -3,7 +3,7 @@
 // la de Johany y guarda la autorizacion en correo_credenciales. Despues
 // vuelve a la app con ?outlook=ok o ?outlook=error.
 
-import { stateValido, urlRegreso, supabaseServidor, guardarCredencial, SCOPES_DELEGADO, CUENTA_OUTLOOK } from './_lib/outlook.js'
+import { stateValido, urlRegreso, supabaseServidor, guardarCredencial, SCOPES_DELEGADO, CUENTA_OUTLOOK } from '../_lib/outlook.js'
 
 function volver(res, ok, mensaje) {
   const q = new URLSearchParams({ outlook: ok ? 'ok' : 'error' })
