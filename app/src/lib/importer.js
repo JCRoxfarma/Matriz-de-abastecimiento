@@ -96,6 +96,12 @@ export async function insertInBatches(table, rows, size = 500) {
 // Reparte los ingresos de una OC+SKU entre sus entregas en orden (E01 antes
 // que E02), y marca en que fecha se completo cada una. Asi lo hace hoy el
 // Excel de Johany: el proveedor entrega la E01 completa antes de mandar la E02.
+// Cada entrega se llena hasta su programado efectivo: lo del Excel mas el
+// ajuste excepcional hecho desde la app (igual que enrich en derive.js).
+// Asi, si se unen dos entregas (+12,000 en la E01 y -12,000 en la E02),
+// lo que llega completa primero la E01 unificada.
+const programadoEfectivo = e => Math.max(0, (e.cant_programada || 0) + (e.ajuste_cantidad || 0))
+
 export function calcularIngresos(entregas, eventos) {
   entregas.sort((a, b) => (a.orden_entrega || 0) - (b.orden_entrega || 0))
   eventos.sort((a, b) => (a.fecha_ingreso || '').localeCompare(b.fecha_ingreso || ''))
@@ -106,11 +112,11 @@ export function calcularIngresos(entregas, eventos) {
     let restante = ev.cantidad_ingresada || 0
     while (restante > 0 && entregaIdx < entregas.length) {
       const e = entregas[entregaIdx]
-      const falta = (e.cant_programada || 0) - acumuladoEnEntrega
+      const falta = programadoEfectivo(e) - acumuladoEnEntrega
       const usar = Math.min(restante, Math.max(falta, 0))
       acumuladoEnEntrega += usar
       restante -= usar
-      if (acumuladoEnEntrega >= (e.cant_programada || 0)) {
+      if (acumuladoEnEntrega >= programadoEfectivo(e)) {
         e._fechaCompleta = ev.fecha_ingreso
         entregaIdx++
         acumuladoEnEntrega = 0
@@ -126,12 +132,13 @@ export function calcularIngresos(entregas, eventos) {
     // todo lo que llegue de mas: si no, una demasia (llego mas de lo
     // programado) se perdia sin mostrarse en ningun lado.
     const esUltima = i === entregas.length - 1
-    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, e.cant_programada || 0)
+    const prog = programadoEfectivo(e)
+    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, prog)
     restanteGlobal -= fill
-    const saldo = Math.max(0, (e.cant_programada || 0) - fill)
+    const saldo = Math.max(0, prog - fill)
     e.cant_ingresada = fill
     e.saldo_pendiente = saldo
-    e.pct_ingreso = e.cant_programada ? Math.round((fill / e.cant_programada) * 1000) / 10 : 0
+    e.pct_ingreso = prog ? Math.round((fill / prog) * 1000) / 10 : 0
     // "Parcial" ya no es un estado aparte: si queda saldo, sea porque no
     // llego nada o porque llego solo una parte, para el seguimiento da lo
     // mismo, sigue Pendiente. La cantidad exacta que ya llego se sigue
