@@ -26,19 +26,39 @@ const b64 = texto => {
 
 // "X-Unsent: 1" hace que Outlook de escritorio abra el archivo como un
 // correo nuevo sin enviar (con boton Enviar), no como uno ya recibido. Sin
-// "From", Outlook usa la cuenta de quien lo abre.
+// "From", Outlook usa la cuenta de quien lo abre. El cuerpo va como
+// multipart/alternative (texto + HTML), que es como lo arma el propio
+// Outlook: el nuevo Outlook dejaba el cuerpo vacio si solo venia el HTML.
+const textoPlano = html => html
+  .replace(/<style[\s\S]*?<\/style>/gi, '')
+  .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|h\d)>/gi, '\n').replace(/<\/t[dh]>/gi, '\t')
+  .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+
+const parteBase64 = texto => b64(texto).replace(/.{1,76}/g, '$&\r\n')
+
 export function emlDeCorreo({ to, cc, subject, html }) {
-  const cuerpo = b64(html).replace(/.{1,76}/g, '$&\r\n')
+  const limite = `----=_Recordatorio_${Date.now().toString(36)}`
   return [
     'X-Unsent: 1',
     `To: ${to}`,
     `Cc: ${cc.join(', ')}`,
     `Subject: =?UTF-8?B?${b64(subject)}?=`,
     'MIME-Version: 1.0',
+    `Content-Type: multipart/alternative; boundary="${limite}"`,
+    '',
+    `--${limite}`,
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    parteBase64(textoPlano(html)),
+    `--${limite}`,
     'Content-Type: text/html; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
     '',
-    cuerpo,
+    parteBase64(html),
+    `--${limite}--`,
+    '',
   ].join('\r\n')
 }
 
@@ -69,11 +89,14 @@ export async function descargarBorradores(lista) {
   }
 }
 
+// mailto: no puede llevar un cuerpo con formato: el cuerpo se copia y hay
+// que pegarlo (Ctrl + V) en el correo que se abre.
 export async function abrirEnOutlook({ to, cc, subject, html }) {
   await navigator.clipboard.write([new ClipboardItem({
     'text/html': new Blob([html], { type: 'text/html' }),
     'text/plain': new Blob([subject], { type: 'text/plain' }),
   })])
+  window.alert('El recordatorio quedó copiado.\n\nEn el correo que se abre en Outlook, haz clic en el espacio del mensaje y presiona Ctrl + V para pegar la tabla.')
   const q = new URLSearchParams({ cc: cc.join(','), subject }).toString().replace(/\+/g, '%20')
   window.location.href = `mailto:${encodeURIComponent(to)}?${q}`
 }
