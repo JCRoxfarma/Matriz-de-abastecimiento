@@ -59,10 +59,29 @@ function diasTexto(r) {
   return `faltan ${r.dd} dia${r.dd !== 1 ? 's' : ''}`
 }
 
+// Meses de las entregas que van en el correo (segun su fecha programada,
+// igual que el filtro de mes de esta pantalla), en orden: "noviembre",
+// "noviembre y diciembre", "noviembre, diciembre y enero 2027". El año
+// solo se pone si no es el año en curso.
+export function mesesDelCorreo(filas) {
+  const claves = [...new Set(filas.map(r => r.fecha_programada_ingreso?.slice(0, 7)).filter(Boolean))].sort()
+  const anioActual = new Date().getFullYear()
+  const nombres = claves.map(c => {
+    const [y, m] = c.split('-').map(Number)
+    const mes = new Date(y, m - 1, 1).toLocaleDateString('es-PE', { month: 'long' }).toLowerCase()
+    return y === anioActual ? mes : `${mes} ${y}`
+  })
+  if (nombres.length <= 1) return nombres[0] || ''
+  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+}
+
+// "Recordatorio de entregas pendientes noviembre - ADHESIVOS DEL NORTE S.A.C."
+// (formato pedido por Johany). Si hay entregas vencidas se antepone URGENTE.
 export function generarAsunto(proveedor, filas) {
   const atrasadas = filas.filter(r => r.dd != null && r.dd < 0).length
-  if (atrasadas > 0) return `URGENTE: ${atrasadas} entrega${atrasadas > 1 ? 's' : ''} vencida${atrasadas > 1 ? 's' : ''} - ${proveedor}`
-  return `Recordatorio de entregas pendientes - ${proveedor}`
+  const meses = mesesDelCorreo(filas)
+  const asunto = `Recordatorio de entregas pendientes${meses ? ` ${meses}` : ''} - ${proveedor}`
+  return atrasadas > 0 ? `URGENTE: ${asunto}` : asunto
 }
 
 export function generarToken(proveedor) {
