@@ -5,6 +5,7 @@ import {
   generarAsunto, generarEmailHtml, enviarRecordatorio,
   nombreCorto, generarToken, estadoOutlook, autorizarOutlook,
 } from './lib/recordatorioService'
+import { listaCc, descargarBorrador, descargarBorradores, abrirEnOutlook } from './lib/borradores'
 
 function hace(iso) {
   if (!iso) return ''
@@ -167,6 +168,47 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
     setHistorial(h)
   }
 
+  // Correo completo de un proveedor, igual al que enviaria la app.
+  function armarCorreo(prov) {
+    return {
+      to: prov.contacto.correo,
+      cc: listaCc(prov.contacto.correo_cc),
+      subject: asuntoEditado[prov.nombre] || generarAsunto(prov.nombre, prov.filas),
+      html: generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre)),
+    }
+  }
+
+  // Al preparar un correo para enviarlo desde Outlook se registra en
+  // "Ultimos envios", igual que el envio automatico.
+  async function registrarPreparados(lista) {
+    for (const prov of lista) {
+      await registrarEnvio(prov.nombre, prov.contacto.correo, prov.filas.length).catch(() => {})
+      setResultado(prev => ({ ...prev, [prov.nombre]: 'preparado' }))
+      setAprobados(prev => ({ ...prev, [prov.nombre]: false }))
+    }
+    setHistorial(await cargarHistorial().catch(() => []))
+  }
+
+  async function borradorUno(prov) {
+    descargarBorrador(prov.nombre, armarCorreo(prov))
+    await registrarPreparados([prov])
+  }
+
+  async function abrirUno(prov) {
+    try {
+      await abrirEnOutlook(armarCorreo(prov))
+      await registrarPreparados([prov])
+    } catch {
+      alert('No se pudo copiar el correo. Usa "Revisar correo" y copia desde ahi.')
+    }
+  }
+
+  async function borradoresAprobados() {
+    const lista = aprobadosLista
+    await descargarBorradores(lista.map(p => ({ proveedor: p.nombre, correo: armarCorreo(p) })))
+    await registrarPreparados(lista)
+  }
+
   async function copiarEmail(prov) {
     const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
     try {
@@ -309,7 +351,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
               {avisoOutlook.ok ? 'Listo: tu cuenta de Outlook quedó autorizada para enviar.' : `No se pudo autorizar Outlook: ${avisoOutlook.msg || 'error desconocido'}`}
             </div>
           )}
-          {esEditor && outlook && (
+          {esEditor && outlook?.configurado && (
             <div className="rec-outlook">
               {outlook.error ? <span>Outlook: {outlook.error}</span>
                 : !outlook.configurado ? <span>Envío por Outlook: falta configurar en Vercel ({outlook.faltan.join(', ')}).</span>
@@ -376,6 +418,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
                           )}
                           <b>{prov.nombre}</b>
                           {resultado[prov.nombre] === 'ok' && <span className="rec-tag-ok">Enviado</span>}
+                          {resultado[prov.nombre] === 'preparado' && <span className="rec-tag-ok">Preparado</span>}
                           {aprobados[prov.nombre] && resultado[prov.nombre] !== 'ok' && <span className="rec-tag-aprob">Aprobado</span>}
                         </div>
                         <span className="rec-prov-cnt">
@@ -388,6 +431,12 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
                         <button className="btn-sm" onClick={() => copiarEmail(prov)}>
                           {resultado[prov.nombre] === 'copiado' ? 'Copiado' : 'Copiar'}
                         </button>
+                        {prov.contacto?.correo && esEditor && (
+                          <>
+                            <button className="btn-sm" onClick={() => abrirUno(prov)} title="Copia el correo y abre uno nuevo en Outlook con destinatario, CC y asunto. Solo pega (Ctrl + V) y envía.">Abrir en Outlook</button>
+                            <button className="btn-sm" onClick={() => borradorUno(prov)} title="Descarga el correo listo. Ábrelo con doble clic en Outlook de escritorio y dale Enviar.">Borrador</button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="rec-prov-email">
@@ -421,7 +470,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
                       )}
                     </div>
                     {enviando === prov.nombre && <div className="rec-enviando">Enviando...</div>}
-                    {resultado[prov.nombre] && resultado[prov.nombre] !== 'ok' && resultado[prov.nombre] !== 'copiado' && (
+                    {resultado[prov.nombre] && !['ok', 'copiado', 'preparado'].includes(resultado[prov.nombre]) && (
                       <div className="rec-err">{resultado[prov.nombre]}</div>
                     )}
                   </div>
@@ -439,13 +488,21 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
                   )}
                 </div>
                 {esEditor && aprobadosLista.length > 0 && (
-                  <button
-                    className="btn act"
-                    disabled={!!enviando}
-                    onClick={() => setConfirmar(true)}
-                  >
-                    {enviando ? 'Enviando...' : `Enviar ${aprobadosLista.length} correo${aprobadosLista.length > 1 ? 's' : ''} aprobado${aprobadosLista.length > 1 ? 's' : ''}`}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button className="btn" onClick={borradoresAprobados} title="Descarga un correo listo por proveedor para abrir en Outlook de escritorio">
+                      Descargar {aprobadosLista.length} borrador{aprobadosLista.length > 1 ? 'es' : ''}
+                    </button>
+                    {/* El envio directo desde la app solo aparece si TI llega a habilitarlo (Outlook autorizado). */}
+                    {outlook?.configurado && outlook?.autorizado && (
+                      <button
+                        className="btn act"
+                        disabled={!!enviando}
+                        onClick={() => setConfirmar(true)}
+                      >
+                        {enviando ? 'Enviando...' : `Enviar ${aprobadosLista.length} correo${aprobadosLista.length > 1 ? 's' : ''} aprobado${aprobadosLista.length > 1 ? 's' : ''}`}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -465,7 +522,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
           )}
 
           <div className="hint" style={{ marginTop: 12 }}>
-            Revisa cada correo con "Revisar correo", marca los que apruebes, y dale "Enviar aprobados". Tambien puedes copiar y pegar directo en Outlook.
+            Revisa cada correo con "Revisar correo" y marca los que apruebes. Luego usa "Descargar borradores": cada uno se abre en Outlook listo para enviar. Por proveedor también tienes "Abrir en Outlook" y "Borrador".
           </div>
         </div>
       </div>

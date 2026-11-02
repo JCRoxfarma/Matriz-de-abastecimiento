@@ -20,7 +20,20 @@ empaque. La usan compras, planeamiento y almacén.
 - El esquema de la base de datos vive en `supabase/schema.sql`, y las
   reglas de login y permisos en `supabase/auth.sql`.
 
-## Envío de correos: Outlook desde la cuenta de Johany (octubre 2026)
+## Envío de correos: borradores para el Outlook de Johany (noviembre 2026)
+
+- **TI no aprobó que la app envíe correos** (ni con permiso de aplicación ni
+  delegado). Por eso los recordatorios se preparan en la app y Johany los
+  envía desde su propio Outlook: botón **Borrador** / **Descargar
+  borradores** (archivo `.eml` con `X-Unsent: 1`, se abre en Outlook de
+  escritorio como correo nuevo listo para enviar) y **Abrir en Outlook**
+  (copia el cuerpo y abre `mailto:` con destinatario, CC y asunto). Ver
+  `app/src/lib/borradores.js`. Al preparar un correo se registra en "Últimos
+  envíos". Siempre va CC a rramirez@roxfarma.com.
+- El botón de envío directo solo aparece si algún día TI lo habilita y la
+  cuenta queda autorizada; el código de abajo se mantiene para ese caso.
+
+## Envío directo desde la app (pendiente de TI, no activo)
 
 - **Decisión de Johany (27/10/2026):** el envío automático usa el permiso
   **delegado** Mail.Send de su propia cuenta (jcueto@roxfarma.com), vía
