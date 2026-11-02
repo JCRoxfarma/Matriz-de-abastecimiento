@@ -59,12 +59,18 @@ function diasTexto(r) {
   return `faltan ${r.dd} dia${r.dd !== 1 ? 's' : ''}`
 }
 
-// Meses de las entregas que van en el correo (segun su fecha programada,
+// Fecha que manda para los recordatorios: la que confirmo el proveedor si
+// la hay, si no la programada. Es la misma "fecha efectiva" que usa el
+// filtro de mes de Seguimiento OC, para que las dos pantallas cuenten las
+// mismas entregas.
+export const fechaEfectiva = r => r.fecha_confirmada || r.fecha_programada_ingreso
+
+// Meses de las entregas que van en el correo (segun su fecha efectiva,
 // igual que el filtro de mes de esta pantalla), en orden: "noviembre",
 // "noviembre y diciembre", "noviembre, diciembre y enero 2027". El año
 // solo se pone si no es el año en curso.
 export function mesesDelCorreo(filas) {
-  const claves = [...new Set(filas.map(r => r.fecha_programada_ingreso?.slice(0, 7)).filter(Boolean))].sort()
+  const claves = [...new Set(filas.map(r => fechaEfectiva(r)?.slice(0, 7)).filter(Boolean))].sort()
   const anioActual = new Date().getFullYear()
   const nombres = claves.map(c => {
     const [y, m] = c.split('-').map(Number)
@@ -100,7 +106,7 @@ export function generarToken(proveedor) {
 
 export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
   const filasHtml = filas
-    .sort((a, b) => (a.fecha_programada_ingreso || '').localeCompare(b.fecha_programada_ingreso || ''))
+    .sort((a, b) => (fechaEfectiva(a) || '').localeCompare(fechaEfectiva(b) || ''))
     .map(r => {
       const esAtraso = r.dd != null && r.dd < 0
       const bgFila = esAtraso ? 'background:#fef2f2' : ''
@@ -109,7 +115,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
       <td style="border:1px solid #d0d5dd;padding:8px">${r.sku}</td>
       <td style="border:1px solid #d0d5dd;padding:8px">${r.descripcion || ''}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:right">${fmt(r.saldo_pendiente)}</td>
-      <td style="border:1px solid #d0d5dd;padding:8px;text-align:center">${fdate(r.fecha_programada_ingreso)}</td>
+      <td style="border:1px solid #d0d5dd;padding:8px;text-align:center">${fdate(fechaEfectiva(r))}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:center;${esAtraso ? 'color:#dc2626;font-weight:600' : ''}">${diasTexto(r)}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:center;${r.estado_confirmacion === 'Confirmada' ? 'color:#16a34a;font-weight:600' : 'color:#d97706;font-weight:600'}">${r.estado_confirmacion || 'Pendiente'}</td>
     </tr>`
@@ -149,7 +155,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
             <th style="border:1px solid #00167b;padding:8px">SKU</th>
             <th style="border:1px solid #00167b;padding:8px">Material</th>
             <th style="border:1px solid #00167b;padding:8px;text-align:right">Cantidad pendiente</th>
-            <th style="border:1px solid #00167b;padding:8px">F. programada</th>
+            <th style="border:1px solid #00167b;padding:8px">F. entrega</th>
             <th style="border:1px solid #00167b;padding:8px">Estado</th>
             <th style="border:1px solid #00167b;padding:8px">Confirmacion</th>
           </tr>

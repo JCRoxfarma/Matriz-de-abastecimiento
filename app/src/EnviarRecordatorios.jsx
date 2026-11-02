@@ -3,7 +3,7 @@ import { fmt } from './lib/derive'
 import {
   cargarContactos, guardarContacto, cargarHistorial, registrarEnvio,
   generarAsunto, generarEmailHtml, enviarRecordatorio,
-  nombreCorto, generarToken, estadoOutlook, autorizarOutlook,
+  nombreCorto, generarToken, estadoOutlook, autorizarOutlook, fechaEfectiva,
 } from './lib/recordatorioService'
 import { listaCc, descargarBorrador, descargarBorradores, abrirEnOutlook } from './lib/borradores'
 
@@ -79,7 +79,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
   const mesesDisponibles = useMemo(() => {
     const set = new Set()
     for (const r of rows) {
-      if (r.abierto && r.fecha_programada_ingreso) set.add(r.fecha_programada_ingreso.slice(0, 7))
+      if (r.abierto && fechaEfectiva(r)) set.add(fechaEfectiva(r).slice(0, 7))
     }
     return [...set].sort()
   }, [rows])
@@ -87,7 +87,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
   const porProveedor = useMemo(() => {
     const abiertas = rows.filter(r => r.abierto).filter(r => {
       if (rango === 'todas') return true
-      const clave = r.fecha_programada_ingreso?.slice(0, 7)
+      const clave = fechaEfectiva(r)?.slice(0, 7)
       return clave === rango
     })
 
