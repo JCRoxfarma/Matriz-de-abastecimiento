@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fmt } from './lib/derive'
 import {
   cargarContactos, guardarContacto, cargarHistorial, registrarEnvio,
-  generarAsunto, generarEmailHtml, enviarRecordatorio,
+  generarAsunto, generarEmailHtml, generarAsuntoOI, generarEmailHtmlOI, enviarRecordatorio,
   nombreCorto, generarToken, estadoOutlook, autorizarOutlook, fechaEfectiva,
 } from './lib/recordatorioService'
 import { listaCc, descargarBorrador, descargarBorradores, abrirEnOutlook } from './lib/borradores'
@@ -34,7 +34,16 @@ function buscarContacto(contactos, nombre) {
   return contactos.find(c => norm(c.nombre) === n) || null
 }
 
-export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onClose }) {
+// tipo "oc": recordatorio de entregas (Seguimiento OC, con enlace al portal
+// de confirmacion). tipo "oi": solicitud de estatus a proveedores de
+// importacion (Seguimiento OI: produccion, fecha de embarque y ETA).
+export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onClose, tipo = 'oc' }) {
+  const esOI = tipo === 'oi'
+  const htmlDe = prov => esOI
+    ? generarEmailHtmlOI(prov.nombre, prov.filas)
+    : generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
+  const asuntoDe = prov => esOI ? generarAsuntoOI(prov.nombre, prov.filas) : generarAsunto(prov.nombre, prov.filas)
+
   const [contactos, setContactos] = useState([])
   const [historial, setHistorial] = useState([])
   const [rango, setRango] = useState('todas')
@@ -146,8 +155,8 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
       if (resultado[prov.nombre] === 'ok') continue
       setEnviando(prov.nombre)
       setResultado(prev => ({ ...prev, [prov.nombre]: null }))
-      const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
-      const asuntoBase = generarAsunto(prov.nombre, prov.filas)
+      const html = htmlDe(prov)
+      const asuntoBase = asuntoDe(prov)
       const asunto = asuntoEditado[prov.nombre] || asuntoBase
       try {
         await enviarRecordatorio(
@@ -173,8 +182,8 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
     return {
       to: prov.contacto.correo,
       cc: listaCc(prov.contacto.correo_cc),
-      subject: asuntoEditado[prov.nombre] || generarAsunto(prov.nombre, prov.filas),
-      html: generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre)),
+      subject: asuntoEditado[prov.nombre] || asuntoDe(prov),
+      html: htmlDe(prov),
     }
   }
 
@@ -210,7 +219,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
   }
 
   async function copiarEmail(prov) {
-    const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
+    const html = htmlDe(prov)
     try {
       const item = new ClipboardItem({
         'text/html': new Blob([html], { type: 'text/html' }),
@@ -262,8 +271,8 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
   if (vistaPrevia) {
     const prov = porProveedor.find(p => p.nombre === vistaPrevia)
     if (!prov) { setVistaPrevia(null); return null }
-    const html = generarEmailHtml(prov.nombre, prov.filas, linkConfirmacion(prov.nombre))
-    const asuntoBase = generarAsunto(prov.nombre, prov.filas)
+    const html = htmlDe(prov)
+    const asuntoBase = asuntoDe(prov)
     const asuntoActual = asuntoEditado[prov.nombre] ?? asuntoBase
     const ccProv = prov.contacto?.correo_cc
     const ccCompleto = ccProv
@@ -335,7 +344,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
     <div className="mdl-ov" onClick={onClose}>
       <div className="mdl mdl-wide" onClick={e => e.stopPropagation()}>
         <div className="mdl-h">
-          <h2>Recordatorios por correo</h2>
+          <h2>{esOI ? 'Solicitud de estatus de importaciones' : 'Recordatorios por correo'}</h2>
           <a
             href="/contactos"
             target="_blank"

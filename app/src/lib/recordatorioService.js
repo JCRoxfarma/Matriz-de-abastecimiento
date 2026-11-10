@@ -183,6 +183,93 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
 </html>`
 }
 
+// --- Solicitud de estatus a proveedores de importacion (Seguimiento OI) ---
+
+// "Solicitud de estatus de importacion noviembre - PROVEEDOR"
+export function generarAsuntoOI(proveedor, filas) {
+  const meses = mesesDelCorreo(filas)
+  return `Solicitud de estatus de importación${meses ? ` ${meses}` : ''} - ${proveedor}`
+}
+
+// Lo que ya se sabe de cada OI (cargado en su panel de Seguimiento OI) se
+// muestra; lo que falta sale "Por confirmar", para que el proveedor lo
+// complete en su respuesta.
+const porConfirmar = '<span style="color:#d97706;font-weight:600">Por confirmar</span>'
+
+function produccionTexto(r) {
+  const seg = r.seg || {}
+  if (seg.fecha_disponibilidad) return `<span style="color:#16a34a;font-weight:600">Terminada</span><br><span style="font-size:11px;color:#667085">disponible ${fdate(seg.fecha_disponibilidad)}</span>`
+  if (seg.cantidad_lista) return `Parcial: ${fmt(seg.cantidad_lista)} listas`
+  return porConfirmar
+}
+
+export function generarEmailHtmlOI(proveedor, filas) {
+  const filasHtml = [...filas]
+    .sort((a, b) => (fechaEfectiva(a) || '').localeCompare(fechaEfectiva(b) || ''))
+    .map(r => {
+      const seg = r.seg || {}
+      const td = 'border:1px solid #d0d5dd;padding:8px'
+      return `<tr>
+      <td style="${td};text-align:center">${r.oc}</td>
+      <td style="${td}">${r.sku}</td>
+      <td style="${td}">${r.descripcion || ''}</td>
+      <td style="${td};text-align:right">${fmt(r.saldo_pendiente)}</td>
+      <td style="${td};text-align:center">${r.etapaLabel || ''}</td>
+      <td style="${td};text-align:center">${produccionTexto(r)}</td>
+      <td style="${td};text-align:center">${seg.etd ? fdate(seg.etd) : porConfirmar}</td>
+      <td style="${td};text-align:center">${seg.eta ? fdate(seg.eta) : porConfirmar}</td>
+    </tr>`
+    }).join('')
+
+  const th = 'border:1px solid #00167b;padding:8px'
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:Calibri,Arial,sans-serif;font-size:14px;color:#344054;margin:0;padding:0;background:#f9fafb">
+  <div style="max-width:880px;margin:0 auto;padding:20px">
+    <div style="background:#00167b;padding:16px 24px;border-radius:8px 8px 0 0">
+      <h2 style="color:#ffffff;margin:0;font-size:18px">Solicitud de estatus de importación</h2>
+      <div style="color:#a3b8ff;font-size:12px;margin-top:4px">${new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+    </div>
+    <div style="background:#ffffff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+      <p>Estimados <strong>${proveedor}</strong>,</p>
+      <p>Les agradeceremos confirmar el estatus actual de las siguientes órdenes de importación pendientes:</p>
+      <ul style="margin:8px 0 8px 20px;padding:0">
+        <li>¿La producción ya fue <strong>terminada</strong>? (si no, fecha estimada de término)</li>
+        <li><strong>Fecha de embarque</strong> (ETD)</li>
+        <li><strong>Fecha estimada de llegada</strong> (ETA)</li>
+      </ul>
+      <table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:13px">
+        <thead>
+          <tr style="background:#00167b;color:#ffffff">
+            <th style="${th}">OI</th>
+            <th style="${th}">SKU</th>
+            <th style="${th}">Material</th>
+            <th style="${th};text-align:right">Cantidad pendiente</th>
+            <th style="${th}">Estado</th>
+            <th style="${th}">Producción</th>
+            <th style="${th}">Fecha de embarque (ETD)</th>
+            <th style="${th}">ETA</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filasHtml}
+        </tbody>
+      </table>
+      <p>Los datos marcados como <span style="color:#d97706;font-weight:600">Por confirmar</span> son los que aún no tenemos. Si alguna fecha ya informada cambió, por favor indíquenoslo.</p>
+      <p style="margin-top:24px">Saludos cordiales,</p>
+      <p style="margin:4px 0"><strong>Johany Cueto</strong><br>
+      Compras - Materiales de empaque<br>
+      <span style="color:#0060ae">Roxfarma S.A.</span></p>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:11px;color:#98a2b3">
+      Correo generado desde el sistema de seguimiento de materiales de empaque.
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 // --- Envio ---
 
 export async function enviarRecordatorio(to, cc, subject, html) {

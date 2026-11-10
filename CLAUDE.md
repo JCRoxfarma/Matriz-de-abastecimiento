@@ -30,6 +30,10 @@ empaque. La usan compras, planeamiento y almacén.
   (copia el cuerpo y abre `mailto:` con destinatario, CC y asunto). Ver
   `app/src/lib/borradores.js`. Al preparar un correo se registra en "Últimos
   envíos". Siempre va CC a rramirez@roxfarma.com.
+- En **Seguimiento OI** el botón **Solicitar estatus a proveedores** abre la
+  misma pantalla (`EnviarRecordatorios` con `tipo="oi"`) con otro correo:
+  estado de la OI, si la producción terminó, fecha de embarque (ETD) y ETA,
+  tomados del panel de cada OI; lo que falta sale "Por confirmar".
 - El botón de envío directo solo aparece si algún día TI lo habilita y la
   cuenta queda autorizada; el código de abajo se mantiene para ese caso.
 

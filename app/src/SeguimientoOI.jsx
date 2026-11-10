@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fmt, fdate, enrich } from './lib/derive'
 import { cargarOI, ETAPAS, etapaLabel, calcularEtapa } from './lib/seguimientoOI'
 import PanelOI from './PanelOI'
+import EnviarRecordatorios from './EnviarRecordatorios'
 import { useSesion } from './lib/auth'
 
 const ETAPA_SHORT = {
@@ -33,6 +34,7 @@ const COLS_OI = [
 export default function SeguimientoOI() {
   const { perfil } = useSesion()
   const [rows, setRows] = useState([])
+  const [mostrarEstatus, setMostrarEstatus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
@@ -217,6 +219,7 @@ export default function SeguimientoOI() {
               {compradores.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
             <button className="btn" onClick={() => { setQInput(''); setQ(''); setFEtapa(''); setFProv(''); setFComp('') }}>Limpiar</button>
+            {esEditor && <button className="btn" onClick={() => setMostrarEstatus(true)}>Solicitar estatus a proveedores</button>}
             <span className="count">{fmt(filtradas.length)} líneas OI</span>
           </div>
 
@@ -244,6 +247,10 @@ export default function SeguimientoOI() {
             </div>
           </div>
         </>
+      )}
+
+      {mostrarEstatus && (
+        <EnviarRecordatorios rows={rows} tipo="oi" esEditor={esEditor} onClose={() => setMostrarEstatus(false)} />
       )}
 
       {selected && (
