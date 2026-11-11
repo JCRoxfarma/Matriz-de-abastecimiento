@@ -447,3 +447,16 @@ tbody tr.sel{background:#f2f5f9}
 .ind-avance-txt .vl span{font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:0}
 .ind-avance-txt .ft{font-size:11.5px;color:var(--ink3);margin-top:2px}
 .ind-avance-txt .ft2{font-size:11.5px;color:var(--ink2);margin-top:6px}
+.ind-celda{cursor:pointer}
+.ind-det{position:fixed;z-index:50;background:var(--card);border:1px solid #d5dae4;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.14);padding:12px 14px;width:500px;max-width:calc(100vw - 24px);max-height:60vh;overflow:auto;pointer-events:none}
+.ind-det.fijo{pointer-events:auto}
+.ind-det-h{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;font-size:12px;color:var(--ink2)}
+.ind-det-h b{font-size:13px;color:var(--ink)}
+.ind-det .rojo{color:var(--red);font-weight:600}
+.ind-det-x{border:none;background:none;font-size:20px;line-height:1;color:var(--ink3);cursor:pointer;padding:0 4px}
+.ind-det table{font-size:12px}
+.ind-det thead th{position:static;background:transparent;padding:5px 6px;font-size:10.5px;cursor:default}
+.ind-det td{padding:5px 6px}
+.ind-det tbody tr{cursor:default}
+.ind-det .dsc{max-width:200px}
+.ind-det-pie{font-size:10.5px;color:var(--ink3);margin-top:6px}

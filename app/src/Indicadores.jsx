@@ -152,7 +152,22 @@ function GraficoOtifMes({ datos }) {
 // casilla dice cuantas entregas llegan y se oscurece segun la cantidad
 // (un solo tono; rojo para las atrasadas). El numero siempre va escrito.
 function MapaLlegadas({ columnas, filas, maxCelda, maxAtr, grupo }) {
+  // Detalle de una casilla: al pasar el cursor se muestran las entregas
+  // (OC/OI, SKU, material, saldo y fecha) para ubicarlas facil; con clic
+  // queda fijo hasta cerrarlo.
+  const [detalle, setDetalle] = useState(null)
+  useEffect(() => {
+    if (!detalle?.fijo) return
+    const cerrar = e => { if (e.key === 'Escape') setDetalle(null) }
+    window.addEventListener('keydown', cerrar)
+    return () => window.removeEventListener('keydown', cerrar)
+  }, [detalle?.fijo])
   if (!filas.length) return <div className="ind-vacio">No hay entregas pendientes.</div>
+  const abrir = (e, f, c, lista, fijo) => {
+    const x = Math.min(e.clientX + 14, window.innerWidth - 520)
+    const y = Math.min(e.clientY + 14, window.innerHeight - 60)
+    setDetalle({ f, c, lista, x, y, fijo })
+  }
   const fondo = (n, atrasado) => {
     if (!n) return 'transparent'
     const t = 0.15 + 0.85 * (n / (atrasado ? maxAtr : maxCelda))
@@ -184,7 +199,9 @@ function MapaLlegadas({ columnas, filas, maxCelda, maxAtr, grupo }) {
                   <td key={c.clave}>
                     {n > 0 && (
                       <div className="ind-celda" style={{ background: fondo(n, c.atrasado), color: fuerte ? '#fff' : 'var(--ink)' }}
-                        title={`${f.nombre} · ${c.titulo}: ${n} entrega${n > 1 ? 's' : ''} · S/ ${fmt(g.soles)} · US$ ${fmt(g.dolares)}`}>
+                        onMouseEnter={e => { if (!detalle?.fijo) abrir(e, { ...f, g }, c, lista, false) }}
+                        onMouseLeave={() => { if (!detalle?.fijo) setDetalle(null) }}
+                        onClick={e => abrir(e, { ...f, g }, c, lista, true)}>
                         {n}
                       </div>
                     )}
@@ -196,6 +213,32 @@ function MapaLlegadas({ columnas, filas, maxCelda, maxAtr, grupo }) {
           ))}
         </tbody>
       </table>
+      {detalle && (
+        <div className={`ind-det ${detalle.fijo ? 'fijo' : ''}`} style={{ left: detalle.x, top: detalle.y }}>
+          <div className="ind-det-h">
+            <div>
+              <b>{detalle.f.nombre}</b>
+              <div className={detalle.c.atrasado ? 'rojo' : ''}>{detalle.c.titulo} · {detalle.lista.length} entrega{detalle.lista.length > 1 ? 's' : ''} · S/ {fmt(detalle.f.g.soles)} · US$ {fmt(detalle.f.g.dolares)}</div>
+            </div>
+            {detalle.fijo && <button className="ind-det-x" onClick={() => setDetalle(null)} title="Cerrar">×</button>}
+          </div>
+          <table>
+            <thead><tr><th>{detalle.f.importado ? 'OI' : 'OC'}</th><th>SKU</th><th>Material</th><th className="num">Pendiente</th><th>Fecha</th></tr></thead>
+            <tbody>
+              {[...detalle.lista].sort((a, b) => (a.fecha_confirmada || a.fecha_programada_ingreso || '').localeCompare(b.fecha_confirmada || b.fecha_programada_ingreso || '')).map(r => (
+                <tr key={r.id_entrega}>
+                  <td className="mono">{r.oc}</td>
+                  <td className="mono">{r.sku}</td>
+                  <td><div className="dsc">{r.descripcion || ''}</div></td>
+                  <td className="num">{fmt(r.saldo_pendiente)}</td>
+                  <td className={`mono ${detalle.c.atrasado ? 'rojo' : ''}`}>{fdate(r.fecha_confirmada || r.fecha_programada_ingreso)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!detalle.fijo && <div className="ind-det-pie">Haz clic en la casilla para dejar fijo este detalle</div>}
+        </div>
+      )}
     </div>
   )
 }
