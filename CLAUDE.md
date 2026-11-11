@@ -110,6 +110,17 @@ Excel** de la app (`app/src/lib/importer.js`), y:
   sentido (base de datos → Excel): el archivo de Johany no se actualiza
   solo, porque vive en su computadora y no en la nube.
 
+## Indicadores (noviembre 2026)
+
+Pestaña **Indicadores** (`app/src/Indicadores.jsx`), visible para todos.
+Reglas de OTIF definidas por Johany: **a tiempo** = llegó el mismo día o
+antes de la fecha comprometida; **completo** = llegó al menos el 95% del
+programado efectivo (llegar de más también es completo); **meta 90%**. Se
+mide cada entrega cuya fecha comprometida ya pasó (las vencidas sin llegar
+cuentan como no cumplidas; las anuladas no cuentan), por defecto contra la
+fecha **original** (antes de reprogramar), con opción de fecha vigente. El
+atraso promedio es solo de lo que llegó tarde.
+
 ## Login y permisos: qué implica
 
 Las reglas de acceso (RLS) de Supabase exigen sesión iniciada para leer

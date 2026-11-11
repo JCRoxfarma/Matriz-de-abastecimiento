@@ -11,6 +11,7 @@ import ImportButton from './ImportButton'
 import ImportIngresosButton from './ImportIngresosButton'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
+import Indicadores from './Indicadores'
 import SeguimientoOI from './SeguimientoOI'
 import VerConfirmaciones from './VerConfirmaciones'
 import Login from './Login'
@@ -282,9 +283,10 @@ export default function App() {
         <button className={`btn ${vista === 'oc' ? 'act' : ''}`} onClick={() => setVista('oc')}>Seguimiento OC</button>
         <button className={`btn ${vista === 'oi' ? 'act' : ''}`} onClick={() => setVista('oi')}>Seguimiento OI</button>
         <button className={`btn ${vista === 'explosion' ? 'act' : ''}`} onClick={() => setVista('explosion')}>Explosión de materiales</button>
+        <button className={`btn ${vista === 'indicadores' ? 'act' : ''}`} onClick={() => setVista('indicadores')}>Indicadores</button>
       </div>
 
-      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : <>
+      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rows} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>
