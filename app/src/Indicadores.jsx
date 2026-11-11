@@ -331,7 +331,7 @@ export default function Indicadores({ rows }) {
       </div>
       {err && <div className="empty">No se pudo cargar todo: {err}</div>}
 
-      <Seccion titulo="Cumplimiento de proveedores (OTIF)" etiqueta="Prioridad 1">
+      <Seccion titulo="Cumplimiento de proveedores (OTIF)" etiqueta={`Meta ${META_OTIF}%`}>
         <div className="ind-kpis">
           <Tarjeta destacada titulo={`OTIF ${otif.actual ? mesLargo(otif.actual.mes) : 'del mes'}`}
             valor={otif.actual?.otif != null ? `${otif.actual.otif}%` : '-'}
@@ -347,7 +347,7 @@ export default function Indicadores({ rows }) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Pendientes por ingresar" etiqueta="Prioridad 2">
+      <Seccion titulo="Pendientes por ingresar">
         <div className="ind-kpis">
           <Tarjeta destacada titulo="OC pendientes (local)" valor={fmt(pendientes.local.n)} pie={`S/ ${fmt(pendientes.local.soles)} · US$ ${fmt(pendientes.local.dolares)}`} />
           <Tarjeta titulo="OI pendientes (importación)" valor={fmt(pendientes.importado.n)} pie={`S/ ${fmt(pendientes.importado.soles)} · US$ ${fmt(pendientes.importado.dolares)}`} />
@@ -360,7 +360,7 @@ export default function Indicadores({ rows }) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Ranking de proveedores" etiqueta="Prioridad 3">
+      <Seccion titulo="Ranking de proveedores">
         <div className="ind-grid2">
           <div className="ind-card">
             <h3>OTIF por proveedor <span className="dim">(los 10 más bajos, mínimo 3 entregas)</span></h3>
@@ -379,7 +379,7 @@ export default function Indicadores({ rows }) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Seguimiento" etiqueta="Prioridad 4">
+      <Seccion titulo="Seguimiento">
         <div className="ind-kpis">
           <Tarjeta titulo="Entregas abiertas confirmadas" valor={seguimiento.pctConfirmadas != null ? `${seguimiento.pctConfirmadas}%` : '-'} color={colorEstado(seguimiento.pctConfirmadas)} pie={`${fmt(seguimiento.sinConfirmar)} sin confirmar`} />
           <Tarjeta titulo="Abiertas reprogramadas" valor={fmt(seguimiento.reprogramadasAbiertas)} color="var(--amb)" pie="con la fecha movida al menos una vez" />
@@ -387,7 +387,7 @@ export default function Indicadores({ rows }) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Importaciones" etiqueta="Prioridad 5">
+      <Seccion titulo="Importaciones">
         <div className="ind-grid2">
           <div className="ind-card">
             <h3>OI abiertas por etapa <span className="dim">({fmt(importaciones.abiertas)} en total)</span></h3>
