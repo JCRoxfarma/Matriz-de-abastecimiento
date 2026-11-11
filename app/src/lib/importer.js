@@ -192,8 +192,16 @@ export async function importarExcel(file, onStep) {
 
   onStep?.('Revisando lo que ya tienes guardado...')
   const existentesProg = await fetchAll('programacion_oc',
-    'id_entrega,fecha_programada_ingreso,estado_gestion,motivo_demora,responsable_accion,criticidad,observaciones,cierre_manual,motivo_cierre,reabierta,historial,fecha_confirmada,ajuste_cantidad,motivo_ajuste')
+    'id_entrega,sku,descripcion,fecha_programada_ingreso,estado_gestion,motivo_demora,responsable_accion,criticidad,observaciones,cierre_manual,motivo_cierre,reabierta,historial,fecha_confirmada,ajuste_cantidad,motivo_ajuste')
   const existentesPorId = new Map(existentesProg.map(r => [r.id_entrega, r]))
+
+  // A veces el Excel trae una fila sin descripcion (paso con la OI
+  // 2600003125). En ese caso se usa la descripcion de otra fila del mismo
+  // SKU: primero del mismo Excel, si no, de lo ya guardado. Asi una
+  // importacion no borra una descripcion que ya se conocia.
+  const limpio = v => (v == null ? '' : String(v).trim())
+  const descripcionPorSku = new Map()
+  for (const r of existentesProg) if (limpio(r.descripcion)) descripcionPorSku.set(String(r.sku), r.descripcion)
 
   const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso')
   const numerosExistentes = new Set(existentesIng.map(r => r.numero_analisis))
@@ -248,6 +256,11 @@ export async function importarExcel(file, onStep) {
       motivo_ajuste: prev ? prev.motivo_ajuste : null,
     }
   }).filter(e => e.id_entrega && e.sku)
+
+  for (const e of entregas) if (limpio(e.descripcion)) descripcionPorSku.set(String(e.sku), e.descripcion)
+  for (const e of entregas) {
+    if (!limpio(e.descripcion)) e.descripcion = descripcionPorSku.get(String(e.sku)) || e.descripcion
+  }
 
   // A veces el Excel trae la misma entrega repetida dos veces (mismo OC,
   // SKU y numero de entrega, cargada desde dos archivos de origen distintos).
