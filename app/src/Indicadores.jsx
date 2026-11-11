@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fmt, fdate } from './lib/derive'
 import { fetchAll } from './lib/importer'
 import { cargarOI, ETAPAS } from './lib/seguimientoOI'
+import { obtenerLeadTimes, leadTimeEsperado, leadTimeReal } from './lib/leadTime'
 
 // Panel de indicadores (pestana "Indicadores"). Reglas de OTIF definidas
 // por Johany (noviembre 2026):
@@ -268,6 +269,7 @@ export default function Indicadores({ rows }) {
   const [mesPend, setMesPend] = useState('')
   const [ultimaLlegada, setUltimaLlegada] = useState(new Map())
   const [oi, setOi] = useState([])
+  const [leadTimes, setLeadTimes] = useState(null)
   const [err, setErr] = useState(null)
 
   useEffect(() => {
@@ -282,6 +284,7 @@ export default function Indicadores({ rows }) {
       })
       .catch(e => setErr(e.message))
     cargarOI().then(setOi).catch(e => setErr(e.message))
+    obtenerLeadTimes().then(setLeadTimes).catch(() => setLeadTimes(null))
   }, [])
 
   const hoy = hoyIso()
@@ -472,6 +475,49 @@ export default function Indicadores({ rows }) {
     }
   }, [oi, hoy])
 
+  // --- 6. Lead time real vs esperado ---
+  // Entregas ya completas con fecha de emision. Las que figuran ingresadas
+  // antes de la emision (lead time negativo, seguramente OC de
+  // regularizacion) no entran al promedio: se cuentan aparte.
+  const leadTime = useMemo(() => {
+    const medidas = []
+    let negativas = 0
+    for (const r of rows) {
+      if (r.estado_gestion === 'Orden Anulada') continue
+      const real = leadTimeReal(r)
+      if (!real?.llego) continue
+      if (real.dias < 0) { negativas++; continue }
+      medidas.push({ r, real: real.dias, esperado: leadTimeEsperado(r, leadTimes)?.dias ?? null })
+    }
+    const prom = l => l.length ? Math.round(l.reduce((a, x) => a + x, 0) / l.length) : null
+    const resumen = lista => {
+      const conEsp = lista.filter(m => m.esperado != null)
+      return {
+        n: lista.length,
+        real: prom(lista.map(m => m.real)),
+        esperado: prom(conEsp.map(m => m.esperado)),
+        nConEsp: conEsp.length,
+        pctAntes: pct(conEsp.filter(m => m.real < m.esperado).length, conEsp.length),
+        difProm: conEsp.length ? Math.round(conEsp.reduce((a, m) => a + (m.real - m.esperado), 0) / conEsp.length) : null,
+      }
+    }
+    const porProv = new Map()
+    for (const m of medidas) {
+      const p = m.r.proveedor || 'Sin proveedor'
+      if (!porProv.has(p)) porProv.set(p, [])
+      porProv.get(p).push(m)
+    }
+    const proveedores = [...porProv.entries()].map(([nombre, l]) => ({ nombre, importado: l[0].r.origen === 'Importado', ...resumen(l) }))
+      .filter(p => p.n >= 3)
+      .sort((a, b) => (a.difProm ?? 999) - (b.difProm ?? 999))
+    return {
+      local: resumen(medidas.filter(m => m.r.origen !== 'Importado')),
+      importado: resumen(medidas.filter(m => m.r.origen === 'Importado')),
+      proveedores,
+      negativas,
+    }
+  }, [rows, leadTimes])
+
   const variacion = otif.actual?.otif != null && otif.anterior?.otif != null
     ? Math.round((otif.actual.otif - otif.anterior.otif) * 10) / 10 : null
 
@@ -589,6 +635,45 @@ export default function Indicadores({ rows }) {
               </table></div>
             )}
           </div>
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Lead time real vs esperado">
+        <div className="pct" style={{ margin: '-4px 0 10px', whiteSpace: 'normal' }}>
+          Días desde la emisión de la OC/OI hasta que la entrega quedó completa, contra el lead time configurado en Explosión de materiales → Lead time.
+          {leadTime.negativas > 0 && <> No se cuentan {leadTime.negativas} entregas que figuran ingresadas antes de la emisión (revisar fechas).</>}
+        </div>
+        <div className="ind-kpis">
+          <Tarjeta destacada titulo="Lead time real · local" valor={leadTime.local.real != null ? `${leadTime.local.real} días` : '-'}
+            pie={leadTime.local.esperado != null ? `esperado ${leadTime.local.esperado} días · ${fmt(leadTime.local.n)} entregas` : `${fmt(leadTime.local.n)} entregas · sin lead time configurado`} />
+          <Tarjeta titulo="Lead time real · importado" valor={leadTime.importado.real != null ? `${leadTime.importado.real} días` : '-'}
+            pie={leadTime.importado.esperado != null ? `esperado ${leadTime.importado.esperado} días · ${fmt(leadTime.importado.n)} entregas` : `${fmt(leadTime.importado.n)} entregas · sin lead time configurado`} />
+          <Tarjeta titulo="Llegan antes del lead time" valor={leadTime.local.pctAntes != null ? `${leadTime.local.pctAntes}%` : '-'} color="var(--blu)"
+            pie={`de las entregas locales con lead time configurado (${fmt(leadTime.local.nConEsp)})`} />
+        </div>
+        <div className="ind-card">
+          <h3>Por proveedor <span className="dim">(mínimo 3 entregas completas; primero los que llegan más antes del lead time)</span></h3>
+          {leadTime.proveedores.length === 0 ? <div className="ind-vacio">Sin datos.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="expl-mini ind-lt">
+                <thead><tr><th>Proveedor</th><th className="num">Entregas</th><th className="num">Lead time real</th><th className="num">Esperado</th><th className="num">Diferencia</th><th className="num">Llegan antes</th></tr></thead>
+                <tbody>
+                  {leadTime.proveedores.map(p => (
+                    <tr key={p.nombre} style={{ cursor: 'default' }}>
+                      <td><div className="prov" style={{ maxWidth: 260 }}>{p.nombre}</div>{p.importado && <span className="ind-mapa-imp">Importado</span>}</td>
+                      <td className="num">{fmt(p.n)}</td>
+                      <td className="num"><b>{p.real} d</b></td>
+                      <td className="num">{p.esperado != null ? `${p.esperado} d` : <span className="dim">sin configurar</span>}</td>
+                      <td className="num" style={{ color: p.difProm == null ? undefined : p.difProm < 0 ? 'var(--blu)' : p.difProm > 0 ? 'var(--red)' : undefined, fontWeight: 600 }}>
+                        {p.difProm == null ? <span className="dim">-</span> : p.difProm < 0 ? `${-p.difProm} d antes` : p.difProm > 0 ? `${p.difProm} d después` : 'justo'}
+                      </td>
+                      <td className="num">{p.pctAntes != null ? `${p.pctAntes}%` : <span className="dim">-</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Seccion>
     </div>

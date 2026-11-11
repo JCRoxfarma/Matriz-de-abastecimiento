@@ -23,6 +23,33 @@ export function detectarTipo(descripcion) {
   return (TIPOS.find(t => t.re && t.re.test(d)) || TIPOS[TIPOS.length - 1]).id
 }
 
+// Lead time configurado para una entrega de programacion_oc: el propio del
+// codigo si lo tiene, si no el de su tipo segun su origen (Local /
+// Importado). Mismas reglas que Explosion de materiales.
+export function leadTimeEsperado(row, leadTimes) {
+  if (!leadTimes) return null
+  const excepcion = leadTimes.materiales.get(String(row.sku)) || null
+  const origen = excepcion?.origen || row.origen || 'Local'
+  const tipo = detectarTipo(row.descripcion)
+  const porTipo = leadTimes.tipos.get(tipo)
+  const delTipo = porTipo ? (origen === 'Importado' ? porTipo.importado : porTipo.local) : null
+  const dias = excepcion?.dias ?? delTipo ?? null
+  return { dias, tipo, tipoLabel: TIPO_LABEL[tipo], origen, fuente: excepcion?.dias != null ? 'propio' : 'tipo' }
+}
+
+// Lead time real: dias desde la emision de la orden hasta que la entrega
+// se completo (fecha real de ingreso). Si aun no llega, los dias que van.
+export function leadTimeReal(row) {
+  if (!row.fecha_emision_oc) return null
+  const desde = new Date(row.fecha_emision_oc + 'T00:00:00')
+  if (row.fecha_real_ingreso) {
+    return { llego: true, dias: Math.round((new Date(row.fecha_real_ingreso + 'T00:00:00') - desde) / 864e5) }
+  }
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return { llego: false, dias: Math.round((hoy - desde) / 864e5) }
+}
+
 // Devuelve null si las tablas todavia no existen en Supabase (falta correr
 // supabase/lead_time.sql): el resto de la explosion sigue funcionando, solo
 // sin fecha limite para pedir.

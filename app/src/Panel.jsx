@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { fmt, fmtM, fdate, days, SEM, CERRADAS, MOTIVOS, RESP, gestOpts } from './lib/derive'
+import LeadTimeEntrega from './LeadTimeEntrega'
 
 export default function Panel({ row, esEditor, onClose, onSaved }) {
   const opcionesGestion = gestOpts(row)
@@ -98,6 +99,8 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
             <div className="kv"><span>Semana de ingreso</span><b>SEM {row.semana_ingreso || ''}</b></div>
             <div className="kv"><span>Almacen destino</span><b>{row.almacen_destino || 'sin definir'}</b></div>
           </div>
+
+          <LeadTimeEntrega row={row} etiqueta="OC" />
 
           <div className="sec">
             <h3>Comercial</h3>

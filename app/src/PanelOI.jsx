@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { fmt, fdate, fmtM } from './lib/derive'
+import LeadTimeEntrega from './LeadTimeEntrega'
 import { ETAPAS, etapasVisibles, calcularEtapa, contarDocs, guardarSeguimientoOI } from './lib/seguimientoOI'
 
 const INCOTERMS = ['EXW', 'FOB', 'CFR', 'CIF', 'DDP', 'DAP']
@@ -131,6 +132,7 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
             <h3>Datos de la OI</h3>
             <div className="kv"><span>Proveedor</span><b>{row.proveedor || ''}</b></div>
             <div className="kv"><span>Comprador</span><b>{row.comprador || 'Sin asignar'}</b></div>
+            <div className="kv"><span>Fecha de emisión OI</span><b>{fdate(row.fecha_emision_oc)}</b></div>
             <div className="kv"><span>Cantidad programada</span><b>{fmt(row.cant_programada)}{row.ajuste_cantidad ? <span style={{ color: 'var(--amb)', fontSize: 12 }}> {row.ajuste_cantidad > 0 ? '+' : ''}{fmt(row.ajuste_cantidad)} ajuste = {fmt(row.progEfectivo)}</span> : ''}</b></div>
             {!esEditor && row.ajuste_cantidad !== 0 && row.ajuste_cantidad != null && <div className="kv"><span>Ajuste excepcional</span><b style={{ color: 'var(--amb)' }}>{row.ajuste_cantidad > 0 ? '+' : ''}{fmt(row.ajuste_cantidad)}{row.motivo_ajuste ? ` (${row.motivo_ajuste})` : ''}</b></div>}
             <div className="kv"><span>Cantidad ingresada</span><b>{fmt(row.cant_ingresada)}</b></div>
@@ -171,6 +173,8 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
             <div className="kv"><span>Precio unitario</span><b>{fmtM(row.precio_unitario, row.moneda)}</b></div>
             <div className="kv"><span>Valor entrega</span><b>{fmtM(row.valor_entrega, row.moneda)}</b></div>
           </div>
+
+          <LeadTimeEntrega row={row} etiqueta="OI" />
 
           {!esEditor && (
             <div className="sec">
