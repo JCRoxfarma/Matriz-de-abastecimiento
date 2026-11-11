@@ -15,7 +15,15 @@ export const nombreMes = clave => {
   return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${y}`
 }
 
-export const days = s => s ? Math.round((new Date(s + 'T00:00:00') - new Date()) / 864e5) : null
+// Dias de calendario entre hoy y la fecha (negativo = ya paso). Se compara
+// contra la medianoche de hoy, no contra la hora actual: si no, despues
+// del mediodia una entrega con fecha de hoy salia como "1 dia de atraso".
+export const days = s => {
+  if (!s) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.round((new Date(s + 'T00:00:00') - hoy) / 864e5)
+}
 
 export const CERRADAS = ['Cerrado', 'Orden Anulada']
 
