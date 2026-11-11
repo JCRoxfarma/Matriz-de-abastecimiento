@@ -26,10 +26,22 @@ const COLS_OI = [
   { k: 'cant_ingresada', l: 'Ingresado', n: 1 },
   { k: 'saldo_pendiente', l: 'Saldo', n: 1 },
   { k: 'estado_ingreso', l: 'Ingreso' },
+  { k: 'finProduccion', l: 'Fin producción' },
+  { k: 'fechaRecojo', l: 'F. recojo' },
+  { k: 'etd', l: 'ETD' },
   { k: 'eta', l: 'ETA' },
   { k: 'diasEta', l: 'Dias ETA', n: 1 },
   { k: 'fecha_programada_ingreso', l: 'F. programada' },
 ]
+
+// Fechas del seguimiento de cada OI que se muestran como columnas (y se
+// pueden ordenar): fin de produccion (= fecha de disponibilidad de la
+// etapa 1), recojo (solo EXW) y ETD.
+const fechasSeg = seg => ({
+  finProduccion: seg?.fecha_disponibilidad || null,
+  fechaRecojo: seg?.fecha_recojo || null,
+  etd: seg?.etd || null,
+})
 
 export default function SeguimientoOI() {
   const { perfil } = useSesion()
@@ -55,7 +67,7 @@ export default function SeguimientoOI() {
       const enriched = data.map(r => {
         const eta = r.seg?.eta || null
         const diasEta = eta ? Math.round((new Date(eta + 'T00:00:00') - new Date()) / 864e5) : null
-        return { ...r, incoterm: r.seg?.incoterm || '', eta, diasEta }
+        return { ...r, ...fechasSeg(r.seg), incoterm: r.seg?.incoterm || '', eta, diasEta }
       })
       setRows(enriched)
     } catch (e) {
@@ -132,7 +144,7 @@ export default function SeguimientoOI() {
       const etapa = calcularEtapa(newSeg, base)
       const eta = newSeg.eta || null
       const diasEta = eta ? Math.round((new Date(eta + 'T00:00:00') - new Date()) / 864e5) : null
-      return { ...base, seg: newSeg, etapa, etapaLabel: etapaLabel(etapa), incoterm: newSeg.incoterm || '', eta, diasEta }
+      return { ...base, ...fechasSeg(newSeg), seg: newSeg, etapa, etapaLabel: etapaLabel(etapa), incoterm: newSeg.incoterm || '', eta, diasEta }
     }))
   }
 
@@ -181,7 +193,10 @@ export default function SeguimientoOI() {
         const EST_TAG = { Completo: 't-grn', Pendiente: 't-blu' }
         return <span className={`tag ${EST_TAG[r.estado_ingreso] || 't-gry'}`}>{r.estado_ingreso}</span>
       }
-      case 'eta': return r.eta ? <span className="mono">{fdate(r.eta)}</span> : <span className="dim">-</span>
+      case 'finProduccion':
+      case 'fechaRecojo':
+      case 'etd':
+      case 'eta': return r[k] ? <span className="mono">{fdate(r[k])}</span> : <span className="dim">-</span>
       case 'diasEta':
         if (r.diasEta == null) return <span className="dim">-</span>
         if (r.diasEta < 0) return <span style={{ color: 'var(--red)', fontWeight: 500 }}>{-r.diasEta} atraso</span>

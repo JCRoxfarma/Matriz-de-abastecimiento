@@ -198,7 +198,7 @@ const porConfirmar = '<span style="color:#d97706;font-weight:600">Por confirmar<
 
 function produccionTexto(r) {
   const seg = r.seg || {}
-  if (seg.fecha_disponibilidad) return `<span style="color:#16a34a;font-weight:600">Terminada</span><br><span style="font-size:11px;color:#667085">disponible ${fdate(seg.fecha_disponibilidad)}</span>`
+  if (seg.fecha_disponibilidad) return `<span style="color:#16a34a;font-weight:600">Terminada</span><br><span style="font-size:11px;color:#667085">fin ${fdate(seg.fecha_disponibilidad)}</span>`
   if (seg.cantidad_lista) return `Parcial: ${fmt(seg.cantidad_lista)} listas`
   return porConfirmar
 }

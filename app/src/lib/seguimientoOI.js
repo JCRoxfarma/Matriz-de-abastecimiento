@@ -3,7 +3,7 @@ import { enrich, withEntregas } from './derive'
 import { fetchAll } from './importer'
 
 export const ETAPAS = [
-  { n: 1, k: 'culminacion', l: 'Confirmación de culminación' },
+  { n: 1, k: 'culminacion', l: 'Confirmación de fin de producción' },
   { n: 2, k: 'coordinacion', l: 'Coordinación según Incoterm' },
   { n: 3, k: 'despacho', l: 'Despacho internacional' },
   { n: 4, k: 'documentos', l: 'Documentos para nacionalización' },

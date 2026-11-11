@@ -212,7 +212,7 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
                       {et.n === 1 && <>
                         {esEditor ? <>
                           <div className="fld"><label>Cantidad lista</label><input type="number" value={form.cantidad_lista} onChange={e => set('cantidad_lista', e.target.value)} /></div>
-                          <div className="fld"><label>Fecha de disponibilidad</label><input type="date" value={form.fecha_disponibilidad} onChange={e => set('fecha_disponibilidad', e.target.value)} /></div>
+                          <div className="fld"><label>Fecha de fin de producción</label><input type="date" value={form.fecha_disponibilidad} onChange={e => set('fecha_disponibilidad', e.target.value)} /></div>
                           <div className="fld">
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <input type="checkbox" checked={form.docs_preliminares} onChange={e => set('docs_preliminares', e.target.checked)} />
@@ -222,7 +222,7 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
                           {form.docs_preliminares && <div className="fld"><label>Detalle de documentos</label><input type="text" value={form.docs_preliminares_detalle} onChange={e => set('docs_preliminares_detalle', e.target.value)} placeholder="Qué documentos enviaron" /></div>}
                         </> : <>
                           <div className="kv"><span>Cantidad lista</span><b>{form.cantidad_lista ? fmt(Number(form.cantidad_lista)) : '-'}</b></div>
-                          <div className="kv"><span>Fecha disponibilidad</span><b>{fdate(form.fecha_disponibilidad) || '-'}</b></div>
+                          <div className="kv"><span>Fin de producción</span><b>{fdate(form.fecha_disponibilidad) || '-'}</b></div>
                           <div className="kv"><span>Docs preliminares</span><b>{form.docs_preliminares ? 'Sí' : 'No'}</b></div>
                           {form.docs_preliminares_detalle && <div className="kv"><span>Detalle</span><b>{form.docs_preliminares_detalle}</b></div>}
                         </>}
