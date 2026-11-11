@@ -42,7 +42,7 @@ const COLS = [
 ]
 
 export default function App() {
-  const { sesion, perfil, cargando } = useSesion()
+  const { sesion, perfil, errorPerfil, cargando } = useSesion()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
@@ -250,6 +250,12 @@ export default function App() {
 
   if (cargando) return <div className="empty">Cargando...</div>
   if (!sesion) return <Login />
+  if (errorPerfil) return (
+    <div className="empty">
+      No se pudo cargar tu perfil: {errorPerfil}
+      <div style={{ marginTop: 14 }}><button className="btn" onClick={() => supabase.auth.signOut()}>Volver a iniciar sesión</button></div>
+    </div>
+  )
   if (!perfil) return <div className="empty">Cargando tu perfil...</div>
 
   const esEditor = perfil.rol === 'editor'
