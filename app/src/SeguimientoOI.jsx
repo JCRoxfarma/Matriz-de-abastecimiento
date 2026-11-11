@@ -14,11 +14,14 @@ const ETAPA_ICON = {
   1: '🏭', 2: '🚛', 3: '🚢', 4: '📄', 5: '📋', 6: '💰', 7: '🏛', 8: '📦', 9: '✅',
 }
 
+// Las primeras columnas (fijo = ancho en px) quedan inmoviles a la
+// izquierda al mover la tabla hacia la derecha, para no perder de vista
+// que OI y material es cada fila.
 const COLS_OI = [
-  { k: 'etapa', l: 'Etapa', w: '240px' },
-  { k: 'oc', l: 'OI' },
-  { k: 'sku', l: 'SKU' },
-  { k: 'descripcion', l: 'Material' },
+  { k: 'etapa', l: 'Etapa', fijo: 240 },
+  { k: 'oc', l: 'OI', fijo: 110 },
+  { k: 'sku', l: 'SKU', fijo: 100 },
+  { k: 'descripcion', l: 'Material', fijo: 300 },
   { k: 'proveedor', l: 'Proveedor' },
   { k: 'comprador', l: 'Comprador', w: '104px' },
   { k: 'incoterm', l: 'Incoterm', w: '80px' },
@@ -42,6 +45,25 @@ const fechasSeg = seg => ({
   fechaRecojo: seg?.fecha_recojo || null,
   etd: seg?.etd || null,
 })
+
+const COLS_FIJAS = COLS_OI.filter(c => c.fijo)
+const izquierdaFija = COLS_OI.reduce((acc, c, i) => {
+  if (c.fijo) acc[c.k] = COLS_OI.slice(0, i).reduce((a, x) => a + (x.fijo || 0), 0)
+  return acc
+}, {})
+
+// Clase y estilo de una celda: las fijas llevan "stk" y su posicion; la
+// ultima fija lleva una sombra que marca el borde.
+function propsCelda(c) {
+  const clases = [c.n ? 'num' : '']
+  if (!c.fijo) return { className: clases.join(' '), style: c.w ? { width: c.w } : undefined }
+  clases.push('stk')
+  if (c === COLS_FIJAS[COLS_FIJAS.length - 1]) clases.push('stk-ult')
+  return {
+    className: clases.join(' ').trim(),
+    style: { left: izquierdaFija[c.k], width: c.fijo, minWidth: c.fijo, maxWidth: c.fijo },
+  }
+}
 
 export default function SeguimientoOI() {
   const { perfil } = useSesion()
@@ -240,11 +262,11 @@ export default function SeguimientoOI() {
 
           <div className="tw">
             <div className="scroll">
-              <table>
+              <table className="oi-tbl">
                 <thead>
                   <tr>
                     {COLS_OI.map(c => (
-                      <th key={c.k} className={c.n ? 'num' : ''} style={c.w ? { width: c.w } : undefined} onClick={() => toggleSort(c.k)}>
+                      <th key={c.k} {...propsCelda(c)} onClick={() => toggleSort(c.k)}>
                         {c.l}{sortK === c.k && <span className="ar">{sortD > 0 ? '▲' : '▼'}</span>}
                       </th>
                     ))}
@@ -253,7 +275,7 @@ export default function SeguimientoOI() {
                 <tbody>
                   {filtradas.map(r => (
                     <tr key={r.id_entrega} className={selectedId === r.id_entrega ? 'sel' : ''} onClick={() => setSelectedId(r.id_entrega)}>
-                      {COLS_OI.map(c => <td key={c.k} className={c.n ? 'num' : ''}>{celda(r, c.k)}</td>)}
+                      {COLS_OI.map(c => <td key={c.k} {...propsCelda(c)}>{celda(r, c.k)}</td>)}
                     </tr>
                   ))}
                 </tbody>

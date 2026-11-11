@@ -267,6 +267,13 @@ tbody tr.sel{background:#f2f5f9}
 
 /* --- Seguimiento OI: pipeline de etapas --- */
 .pn-oi{max-width:520px}
+.oi-tbl th.stk,.oi-tbl td.stk{position:sticky;background:var(--card);z-index:1}
+.oi-tbl thead th.stk{z-index:3;background:#fbfbfc}
+.oi-tbl tbody tr:hover td.stk{background:#fafafb}
+.oi-tbl tbody tr.sel td.stk{background:#f2f5f9}
+.oi-tbl .stk-ult{box-shadow:2px 0 4px rgba(0,0,0,.06)}
+.oi-tbl td.stk .dsc{max-width:100%}
+@media (max-width:900px){.oi-tbl th.stk,.oi-tbl td.stk{position:static;box-shadow:none}}
 .oi-pipeline{display:flex;flex-direction:column;gap:0}
 .oi-step{position:relative;padding-left:28px;padding-bottom:4px}
 .oi-step:not(:last-child)::before{content:'';position:absolute;left:9px;top:24px;bottom:0;width:2px;background:var(--line)}
