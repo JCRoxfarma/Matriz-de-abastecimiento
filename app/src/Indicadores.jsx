@@ -16,8 +16,6 @@ const META_OTIF = 90
 const MINIMO_COMPLETO = 0.95
 
 // Colores de series validados (azul local / ambar importado) y de estado.
-const C_LOCAL = '#2a6fc2'
-const C_IMPORT = '#c27a1c'
 const C_BARRA = '#2a6fc2'
 
 const hoyIso = () => {
@@ -116,40 +114,54 @@ function GraficoOtifMes({ datos }) {
   )
 }
 
-// Barras apiladas por semana: local / importado.
-function GraficoSemanas({ datos }) {
-  const [hover, setHover] = useState(null)
-  const alto = 150
-  const max = Math.max(1, ...datos.map(d => d.local + d.importado))
+// Mapa de llegadas: un proveedor por fila, una semana por columna; cada
+// casilla dice cuantas entregas llegan y se oscurece segun la cantidad
+// (un solo tono; rojo para las atrasadas). El numero siempre va escrito.
+function MapaLlegadas({ columnas, filas, maxCelda, maxAtr, grupo }) {
+  if (!filas.length) return <div className="ind-vacio">No hay entregas pendientes.</div>
+  const fondo = (n, atrasado) => {
+    if (!n) return 'transparent'
+    const t = 0.15 + 0.85 * (n / (atrasado ? maxAtr : maxCelda))
+    return atrasado ? `rgba(200, 68, 60, ${t})` : `rgba(42, 111, 194, ${t})`
+  }
   return (
-    <div className="ind-vbars" onMouseLeave={() => setHover(null)}>
-      <div className="ind-leyenda">
-        <span><i style={{ background: C_LOCAL }} />Local</span>
-        <span><i style={{ background: C_IMPORT }} />Importado</span>
-      </div>
-      <div className="ind-vbars-plot" style={{ height: alto }}>
-        <div className="ind-vbars-cols">
-          {datos.map(d => {
-            const total = d.local + d.importado
-            return (
-              <div key={d.clave} className="ind-vcol" onMouseEnter={() => setHover(d)}>
-                {total > 0 && <div className="ind-vval" style={{ bottom: (total / max) * alto + 4 }}>{total}</div>}
-                <div className="ind-stack" style={{ height: (total / max) * alto }}>
-                  {d.importado > 0 && <div style={{ flex: d.importado, background: C_IMPORT }} />}
-                  {d.local > 0 && <div style={{ flex: d.local, background: C_LOCAL }} />}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-      <div className="ind-vbars-x">{datos.map(d => <div key={d.clave} className={d.atrasado ? 'rojo' : ''}>{d.etiqueta}</div>)}</div>
-      {hover && (
-        <div className="ind-tip">
-          <b>{hover.titulo}</b><br />
-          Local: {hover.local} entregas · Importado: {hover.importado}
-        </div>
-      )}
+    <div className="ind-mapa-wrap">
+      <table className="ind-mapa">
+        <thead>
+          <tr>
+            <th className="ind-mapa-prov">Proveedor</th>
+            {columnas.map(c => <th key={c.clave} className={c.atrasado ? 'rojo' : ''} title={c.titulo}>{c.etiqueta}</th>)}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map(f => (
+            <tr key={f.nombre}>
+              <td className="ind-mapa-prov">
+                <div className="dsc" title={f.nombre}>{f.nombre}</div>
+                {f.importado && <span className="ind-mapa-imp">Importado</span>}
+              </td>
+              {columnas.map(c => {
+                const lista = f.celdas[c.clave] || []
+                const n = lista.length
+                const fuerte = n && n / (c.atrasado ? maxAtr : maxCelda) > 0.55
+                const g = n ? grupo(lista) : null
+                return (
+                  <td key={c.clave}>
+                    {n > 0 && (
+                      <div className="ind-celda" style={{ background: fondo(n, c.atrasado), color: fuerte ? '#fff' : 'var(--ink)' }}
+                        title={`${f.nombre} · ${c.titulo}: ${n} entrega${n > 1 ? 's' : ''} · S/ ${fmt(g.soles)} · US$ ${fmt(g.dolares)}`}>
+                        {n}
+                      </div>
+                    )}
+                  </td>
+                )
+              })}
+              <td className="ind-mapa-tot">{f.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -235,26 +247,55 @@ export default function Indicadores({ rows }) {
     })
     const local = abiertas.filter(r => r.origen !== 'Importado')
     const importado = abiertas.filter(r => r.origen === 'Importado')
-    const atrasadas = abiertas.filter(r => r.dd != null && r.dd < 0)
-    const semana = abiertas.filter(r => r.dd != null && r.dd >= 0 && r.dd <= 7)
 
-    // Atrasadas + proximas 8 semanas (lunes a domingo) segun fecha efectiva.
+    // Columnas por plazo segun la fecha efectiva (confirmada o
+    // programada): atrasado, 8 semanas de lunes a domingo (la primera es
+    // la semana en curso) y "despues".
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const lunes = new Date(hoy + 'T00:00:00')
     lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))
-    const semanas = [{ clave: 'atr', etiqueta: 'Atrasado', titulo: 'Atrasadas (fecha ya pasó)', local: 0, importado: 0, atrasado: true }]
+    const columnas = [{ clave: 'atr', etiqueta: 'Atrasado', titulo: 'Atrasadas (la fecha ya pasó)', atrasado: true }]
     for (let i = 0; i < 8; i++) {
       const ini = new Date(lunes); ini.setDate(lunes.getDate() + i * 7)
       const fin = new Date(ini); fin.setDate(ini.getDate() + 6)
-      const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      semanas.push({ clave: iso(ini), desde: iso(ini), hasta: iso(fin), etiqueta: fdate(iso(ini)).slice(0, 5), titulo: `Semana del ${fdate(iso(ini))} al ${fdate(iso(fin))}`, local: 0, importado: 0 })
+      columnas.push({ clave: `s${i}`, semana: i, desde: iso(ini), hasta: iso(fin), etiqueta: i === 0 ? 'Esta sem.' : fdate(iso(ini)).slice(0, 5), titulo: `Semana del ${fdate(iso(ini))} al ${fdate(iso(fin))}` })
     }
+    const ultimaHasta = columnas[columnas.length - 1].hasta
+    columnas.push({ clave: 'desp', etiqueta: 'Después', titulo: `Después del ${fdate(ultimaHasta)}` })
+    const columnaDe = f => !f ? null : f < hoy ? 'atr' : f > ultimaHasta ? 'desp' : columnas.find(c => c.desde && f >= c.desde && f <= c.hasta)?.clave
+
+    // Tarjetas por plazo: atrasadas, esta semana, proxima, 2 a 4, despues.
+    const plazoDe = clave => clave === 'atr' ? 'atr' : clave === 's0' ? 'esta' : clave === 's1' ? 'prox' : ['s2', 's3', 's4'].includes(clave) ? 'mes' : 'despues'
+    const plazos = [
+      { id: 'atr', titulo: 'Atrasadas', color: 'var(--red)' },
+      { id: 'esta', titulo: 'Esta semana', color: 'var(--amb)' },
+      { id: 'prox', titulo: 'Próxima semana' },
+      { id: 'mes', titulo: 'En 2 a 4 semanas' },
+      { id: 'despues', titulo: 'Más adelante' },
+    ].map(p => ({ ...p, filas: [] }))
+
+    const porProveedor = new Map()
     for (const r of abiertas) {
-      const f = r.fecha_confirmada || r.fecha_programada_ingreso
-      if (!f) continue
-      const s = f < hoy ? semanas[0] : semanas.find(x => x.desde && f >= x.desde && f <= x.hasta)
-      if (s) s[r.origen === 'Importado' ? 'importado' : 'local']++
+      const clave = columnaDe(r.fecha_confirmada || r.fecha_programada_ingreso)
+      if (!clave) continue
+      plazos.find(p => p.id === plazoDe(clave)).filas.push(r)
+      const nombre = r.proveedor || 'Sin proveedor'
+      if (!porProveedor.has(nombre)) porProveedor.set(nombre, { nombre, importado: r.origen === 'Importado', total: 0, celdas: {} })
+      const fila = porProveedor.get(nombre)
+      fila.total++
+      fila.celdas[clave] = fila.celdas[clave] || []
+      fila.celdas[clave].push(r)
     }
-    return { local: grupo(local), importado: grupo(importado), atrasadas: grupo(atrasadas), semana: grupo(semana), semanas }
+    const tarjetasPlazo = plazos.map(p => {
+      const cuenta = new Map()
+      for (const r of p.filas) cuenta.set(r.proveedor || 'Sin proveedor', (cuenta.get(r.proveedor || 'Sin proveedor') || 0) + 1)
+      return { ...p, ...grupo(p.filas), top: [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3) }
+    })
+    const mapa = [...porProveedor.values()].sort((a, b) =>
+      (b.celdas.atr?.length || 0) - (a.celdas.atr?.length || 0) || b.total - a.total)
+    const maxCelda = Math.max(1, ...mapa.flatMap(f => Object.entries(f.celdas).filter(([k]) => k !== 'atr').map(([, v]) => v.length)))
+    const maxAtr = Math.max(1, ...mapa.map(f => f.celdas.atr?.length || 0))
+    return { local: grupo(local), importado: grupo(importado), tarjetasPlazo, columnas, mapa, maxCelda, maxAtr, grupo }
   }, [rows, hoy])
 
   // --- 3. Proveedores ---
@@ -354,12 +395,24 @@ export default function Indicadores({ rows }) {
         <div className="ind-kpis">
           <Tarjeta destacada titulo="OC pendientes (local)" valor={fmt(pendientes.local.n)} pie={`S/ ${fmt(pendientes.local.soles)} · US$ ${fmt(pendientes.local.dolares)}`} />
           <Tarjeta titulo="OI pendientes (importación)" valor={fmt(pendientes.importado.n)} pie={`S/ ${fmt(pendientes.importado.soles)} · US$ ${fmt(pendientes.importado.dolares)}`} />
-          <Tarjeta titulo="Atrasadas hoy" valor={fmt(pendientes.atrasadas.n)} color="var(--red)" pie={`S/ ${fmt(pendientes.atrasadas.soles)} · US$ ${fmt(pendientes.atrasadas.dolares)}`} />
-          <Tarjeta titulo="Llegan en 7 días" valor={fmt(pendientes.semana.n)} color="var(--amb)" pie="según fecha confirmada o programada" />
+        </div>
+        <div className="ind-plazos">
+          {pendientes.tarjetasPlazo.map(p => (
+            <div key={p.id} className="ind-plazo">
+              <div className="lb">{p.titulo}</div>
+              <div className="vl" style={p.color ? { color: p.color } : undefined}>{fmt(p.n)}</div>
+              <div className="ft">S/ {fmt(p.soles)} · US$ {fmt(p.dolares)}</div>
+              {p.top.length > 0 && (
+                <ul className="ind-plazo-top">
+                  {p.top.map(([nombre, n]) => <li key={nombre}><span>{nombre}</span><b>{n}</b></li>)}
+                </ul>
+              )}
+            </div>
+          ))}
         </div>
         <div className="ind-card">
-          <h3>Entregas pendientes por semana</h3>
-          <GraficoSemanas datos={pendientes.semanas} />
+          <h3>Llegadas por proveedor <span className="dim">(entregas pendientes por semana, según fecha confirmada o programada)</span></h3>
+          <MapaLlegadas columnas={pendientes.columnas} filas={pendientes.mapa} maxCelda={pendientes.maxCelda} maxAtr={pendientes.maxAtr} grupo={pendientes.grupo} />
         </div>
       </Seccion>
 
