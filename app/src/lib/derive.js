@@ -46,7 +46,7 @@ export const EST_TAG = { Completo: 't-grn', Pendiente: 't-blu' }
 export const GES_TAG = { 'En seguimiento': 't-blu', Reprogramado: 't-amb', Atrasado: 't-red', Cerrado: 't-gry', 'Orden Anulada': 't-red' }
 export const CONF_TAG = { Pendiente: 't-amb', Confirmada: 't-grn' }
 
-export const MOTIVOS = ['', 'Falta de stock proveedor', 'Demora producción proveedor', 'Demora logística / despacho', 'Ingreso parcial', 'Reprogramación interna']
+export const MOTIVOS = ['', 'Falta de stock proveedor', 'Demora producción proveedor', 'Demora logística / despacho', 'Ingreso parcial', 'Cambio de demanda (planificación)', 'Reprogramación interna']
 export const RESP = ['', 'Compras', 'Proveedor', 'Planeamiento', 'Almacén', 'Calidad']
 export const G_ACT = ['En seguimiento', 'Reprogramado', 'Atrasado']
 
