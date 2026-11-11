@@ -119,6 +119,38 @@ function Seccion({ titulo, etiqueta, accion, children }) {
 
 // Barras verticales por mes con linea de meta. Una sola serie: el color de
 // cada barra dice si cumple la meta (con el valor siempre escrito encima).
+// % de ingresos del mes que llegaron antes del lead time. Una sola serie
+// (azul); el numero va escrito sobre cada barra y el detalle al pasar el
+// cursor.
+function GraficoAntesMes({ datos }) {
+  const [hover, setHover] = useState(null)
+  const alto = 160
+  if (!datos.length) return <div className="ind-vacio">Todavía no hay ingresos con lead time configurado para medir.</div>
+  const y = v => alto - (v / 100) * alto
+  return (
+    <div className="ind-vbars" onMouseLeave={() => setHover(null)}>
+      <div className="ind-vbars-plot" style={{ height: alto }}>
+        {[0, 50, 100].map(g => <div key={g} className="ind-grid" style={{ top: y(g) }}><span>{g}%</span></div>)}
+        <div className="ind-vbars-cols">
+          {datos.map(d => (
+            <div key={d.mes} className="ind-vcol" onMouseEnter={() => setHover(d)}>
+              <div className="ind-vval" style={{ bottom: (d.pct / 100) * alto + 4 }}>{d.pct}%</div>
+              <div className="ind-vbar" style={{ height: Math.max(2, (d.pct / 100) * alto), background: C_BARRA }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="ind-vbars-x">{datos.map(d => <div key={d.mes}>{mesNombre(d.mes)}<div className="ind-vbars-n">{d.antes}/{d.n}</div></div>)}</div>
+      {hover && (
+        <div className="ind-tip">
+          <b>{mesLargo(hover.mes)}</b> · {hover.pct}% antes del lead time<br />
+          {hover.antes} de {hover.n} ingresos{hover.diasAntes != null ? ` · en promedio ${hover.diasAntes} días antes` : ''}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function GraficoOtifMes({ datos }) {
   const [hover, setHover] = useState(null)
   const alto = 180
@@ -510,7 +542,25 @@ export default function Indicadores({ rows }) {
     const proveedores = [...porProv.entries()].map(([nombre, l]) => ({ nombre, importado: l[0].r.origen === 'Importado', ...resumen(l) }))
       .filter(p => p.n >= 3)
       .sort((a, b) => (a.difProm ?? 999) - (b.difProm ?? 999))
+    // Por mes de ingreso (fecha en que la entrega quedo completa), solo las
+    // que tienen lead time configurado: cuantas llegaron antes.
+    const porMes = new Map()
+    for (const m of medidas) {
+      if (m.esperado == null) continue
+      const k = m.r.fecha_real_ingreso.slice(0, 7)
+      if (!porMes.has(k)) porMes.set(k, [])
+      porMes.get(k).push(m)
+    }
+    const serieMes = [...porMes.keys()].sort().slice(-12).map(mes => {
+      const l = porMes.get(mes)
+      const antes = l.filter(m => m.real < m.esperado)
+      return {
+        mes, n: l.length, antes: antes.length, pct: pct(antes.length, l.length),
+        diasAntes: antes.length ? Math.round(antes.reduce((a, m) => a + (m.esperado - m.real), 0) / antes.length) : null,
+      }
+    })
     return {
+      serieMes,
       local: resumen(medidas.filter(m => m.r.origen !== 'Importado')),
       importado: resumen(medidas.filter(m => m.r.origen === 'Importado')),
       proveedores,
@@ -650,6 +700,10 @@ export default function Indicadores({ rows }) {
             pie={leadTime.importado.esperado != null ? `esperado ${leadTime.importado.esperado} días · ${fmt(leadTime.importado.n)} entregas` : `${fmt(leadTime.importado.n)} entregas · sin lead time configurado`} />
           <Tarjeta titulo="Llegan antes del lead time" valor={leadTime.local.pctAntes != null ? `${leadTime.local.pctAntes}%` : '-'} color="var(--blu)"
             pie={`de las entregas locales con lead time configurado (${fmt(leadTime.local.nConEsp)})`} />
+        </div>
+        <div className="ind-card">
+          <h3>Ingresos antes del lead time por mes <span className="dim">(% de las entregas completadas en el mes; debajo, cuántas de cuántas)</span></h3>
+          <GraficoAntesMes datos={leadTime.serieMes} />
         </div>
         <div className="ind-card">
           <h3>Por proveedor <span className="dim">(mínimo 3 entregas completas; primero los que llegan más antes del lead time)</span></h3>

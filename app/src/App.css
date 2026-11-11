@@ -461,3 +461,4 @@ tbody tr.sel{background:#f2f5f9}
 .ind-det .dsc{max-width:200px}
 .ind-det-pie{font-size:10.5px;color:var(--ink3);margin-top:6px}
 .ro-val{font-size:13px;font-weight:600;padding:8px 11px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink)}
+.ind-vbars-n{font-size:10px;color:var(--ink3);text-transform:none;margin-top:1px;font-variant-numeric:tabular-nums}
