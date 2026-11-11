@@ -70,12 +70,46 @@ function Tarjeta({ titulo, valor, pie, color, destacada }) {
   )
 }
 
-function Seccion({ titulo, etiqueta, children }) {
+// Anillo de avance: el arco lleno es el % ingresado; el numero va al centro.
+function Anillo({ valor, color, tam = 92 }) {
+  const grosor = 9
+  const r = (tam - grosor) / 2
+  const circ = 2 * Math.PI * r
+  const v = Math.max(0, Math.min(100, valor || 0))
+  return (
+    <svg width={tam} height={tam} viewBox={`0 0 ${tam} ${tam}`} className="ind-anillo" role="img" aria-label={`${v}% ingresado`}>
+      <circle cx={tam / 2} cy={tam / 2} r={r} fill="none" stroke="var(--line2)" strokeWidth={grosor} />
+      {v > 0 && (
+        <circle cx={tam / 2} cy={tam / 2} r={r} fill="none" stroke={color} strokeWidth={grosor} strokeLinecap="round"
+          strokeDasharray={`${(v / 100) * circ} ${circ}`} transform={`rotate(-90 ${tam / 2} ${tam / 2})`} />
+      )}
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" className="ind-anillo-txt">{valor == null ? '-' : `${Math.round(v)}%`}</text>
+    </svg>
+  )
+}
+
+// Tarjeta OC / OI: anillo con el avance del mes y lo que falta ingresar.
+function TarjetaAvance({ titulo, color, avance, pendiente, mesTexto }) {
+  return (
+    <div className="ind-avance">
+      <Anillo valor={avance.pct} color={color} />
+      <div className="ind-avance-txt">
+        <div className="lb">{titulo}</div>
+        <div className="vl">{fmt(pendiente.n)} <span>entregas pendientes</span></div>
+        <div className="ft">S/ {fmt(pendiente.soles)} · US$ {fmt(pendiente.dolares)}</div>
+        <div className="ft2">Avance de {mesTexto}: <b>{fmt(avance.ingresadas)}</b> de {fmt(avance.total)} entregas ya ingresaron</div>
+      </div>
+    </div>
+  )
+}
+
+function Seccion({ titulo, etiqueta, accion, children }) {
   return (
     <section className="ind-sec">
       <div className="ind-sec-h">
         <h2>{titulo}</h2>
         {etiqueta && <span className="ind-chip">{etiqueta}</span>}
+        {accion && <div className="ind-sec-acc">{accion}</div>}
       </div>
       {children}
     </section>
@@ -188,6 +222,7 @@ function BarrasH({ filas, formato, maximo, colorDe }) {
 
 export default function Indicadores({ rows }) {
   const [base, setBase] = useState('original')
+  const [mesPend, setMesPend] = useState('')
   const [ultimaLlegada, setUltimaLlegada] = useState(new Map())
   const [oi, setOi] = useState([])
   const [err, setErr] = useState(null)
@@ -238,8 +273,16 @@ export default function Indicadores({ rows }) {
   }, [evaluadas, mesActual, hoy])
 
   // --- 2. Pendientes ---
+  // Meses con entregas pendientes (segun fecha efectiva) para el selector.
+  const fechaEf = r => r.fecha_confirmada || r.fecha_programada_ingreso
+  const mesesPend = useMemo(() => [...new Set(rows
+    .filter(r => r.abierto && r.estado_gestion !== 'Orden Anulada' && fechaEf(r))
+    .map(r => fechaEf(r).slice(0, 7)))].sort(), [rows])
+
   const pendientes = useMemo(() => {
-    const abiertas = rows.filter(r => r.abierto && r.estado_gestion !== 'Orden Anulada')
+    // Con un mes elegido, solo las entregas cuya fecha efectiva cae en ese mes.
+    const abiertas = rows.filter(r => r.abierto && r.estado_gestion !== 'Orden Anulada'
+      && (!mesPend || fechaEf(r)?.slice(0, 7) === mesPend))
     const grupo = lista => ({
       n: lista.length,
       soles: lista.filter(esSoles).reduce((a, r) => a + valorPendiente(r), 0),
@@ -254,14 +297,28 @@ export default function Indicadores({ rows }) {
     const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const lunes = new Date(hoy + 'T00:00:00')
     lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7))
-    const columnas = [{ clave: 'atr', etiqueta: 'Atrasado', titulo: 'Atrasadas (la fecha ya pasó)', atrasado: true }]
-    for (let i = 0; i < 8; i++) {
-      const ini = new Date(lunes); ini.setDate(lunes.getDate() + i * 7)
-      const fin = new Date(ini); fin.setDate(ini.getDate() + 6)
-      columnas.push({ clave: `s${i}`, semana: i, desde: iso(ini), hasta: iso(fin), etiqueta: i === 0 ? 'Esta sem.' : fdate(iso(ini)).slice(0, 5), titulo: `Semana del ${fdate(iso(ini))} al ${fdate(iso(fin))}` })
+    // Semanas que se muestran: sin mes elegido, 8 semanas desde la actual;
+    // con mes, las semanas de ese mes que aun no pasaron. La clave de cada
+    // semana es su distancia a la semana actual (s0 = esta semana).
+    let desdeSem = new Date(lunes)
+    let hastaFecha = null
+    if (mesPend) {
+      const [y, m] = mesPend.split('-').map(Number)
+      const ini = new Date(y, m - 1, 1)
+      ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7))
+      if (ini > desdeSem) desdeSem = ini
+      hastaFecha = iso(new Date(y, m, 0))
     }
-    const ultimaHasta = columnas[columnas.length - 1].hasta
-    columnas.push({ clave: 'desp', etiqueta: 'Después', titulo: `Después del ${fdate(ultimaHasta)}` })
+    const columnas = [{ clave: 'atr', etiqueta: 'Atrasado', titulo: 'Atrasadas (la fecha ya pasó)', atrasado: true }]
+    for (let i = 0; i < (mesPend ? 6 : 8); i++) {
+      const ini = new Date(desdeSem); ini.setDate(desdeSem.getDate() + i * 7)
+      if (hastaFecha && iso(ini) > hastaFecha) break
+      const fin = new Date(ini); fin.setDate(ini.getDate() + 6)
+      const rel = Math.round((ini - lunes) / (7 * 864e5))
+      columnas.push({ clave: `s${rel}`, desde: iso(ini), hasta: iso(fin), etiqueta: rel === 0 ? 'Esta sem.' : fdate(iso(ini)).slice(0, 5), titulo: `Semana del ${fdate(iso(ini))} al ${fdate(iso(fin))}` })
+    }
+    const ultimaHasta = columnas[columnas.length - 1].hasta || hoy
+    if (!mesPend) columnas.push({ clave: 'desp', etiqueta: 'Después', titulo: `Después del ${fdate(ultimaHasta)}` })
     const columnaDe = f => !f ? null : f < hoy ? 'atr' : f > ultimaHasta ? 'desp' : columnas.find(c => c.desde && f >= c.desde && f <= c.hasta)?.clave
 
     // Tarjetas por plazo: atrasadas, esta semana, proxima, 2 a 4, despues.
@@ -295,8 +352,25 @@ export default function Indicadores({ rows }) {
       (b.celdas.atr?.length || 0) - (a.celdas.atr?.length || 0) || b.total - a.total)
     const maxCelda = Math.max(1, ...mapa.flatMap(f => Object.entries(f.celdas).filter(([k]) => k !== 'atr').map(([, v]) => v.length)))
     const maxAtr = Math.max(1, ...mapa.map(f => f.celdas.atr?.length || 0))
-    return { local: grupo(local), importado: grupo(importado), tarjetasPlazo, columnas, mapa, maxCelda, maxAtr, grupo }
-  }, [rows, hoy])
+    // Avance del mes (el elegido o el actual): de las entregas con fecha
+    // efectiva en ese mes, cuantas ya ingresaron (dejaron de estar abiertas).
+    const mesAvance = mesPend || mesActual
+    const delMes = rows.filter(r => r.estado_gestion !== 'Orden Anulada' && fechaEf(r)?.slice(0, 7) === mesAvance)
+    const avanceDe = lista => {
+      const ingresadas = lista.filter(r => !r.abierto).length
+      return { total: lista.length, ingresadas, pct: lista.length ? Math.round((ingresadas / lista.length) * 1000) / 10 : null }
+    }
+    const avance = {
+      mes: mesAvance,
+      local: avanceDe(delMes.filter(r => r.origen !== 'Importado')),
+      importado: avanceDe(delMes.filter(r => r.origen === 'Importado')),
+    }
+    // Con un mes elegido no se muestra lo que queda vacio.
+    const tarjetasVisibles = mesPend ? tarjetasPlazo.filter(p => p.n > 0) : tarjetasPlazo
+    const hayAtrasadas = mapa.some(f => f.celdas.atr?.length)
+    const columnasVisibles = mesPend && !hayAtrasadas ? columnas.filter(c => c.clave !== 'atr') : columnas
+    return { local: grupo(local), importado: grupo(importado), tarjetasPlazo: tarjetasVisibles, columnas: columnasVisibles, mapa, maxCelda, maxAtr, grupo, avance }
+  }, [rows, hoy, mesPend, mesActual])
 
   // --- 3. Proveedores ---
   const proveedores = useMemo(() => {
@@ -391,10 +465,15 @@ export default function Indicadores({ rows }) {
         </div>
       </Seccion>
 
-      <Seccion titulo="Pendientes por ingresar">
+      <Seccion titulo="Pendientes por ingresar" accion={
+        <select value={mesPend} onChange={e => setMesPend(e.target.value)}>
+          <option value="">Todos los meses</option>
+          {mesesPend.map(m => <option key={m} value={m}>{mesLargo(m).replace(/^./, c => c.toUpperCase())}{m < mesActual ? ' (atrasadas)' : ''}</option>)}
+        </select>
+      }>
         <div className="ind-kpis">
-          <Tarjeta destacada titulo="OC pendientes (local)" valor={fmt(pendientes.local.n)} pie={`S/ ${fmt(pendientes.local.soles)} · US$ ${fmt(pendientes.local.dolares)}`} />
-          <Tarjeta titulo="OI pendientes (importación)" valor={fmt(pendientes.importado.n)} pie={`S/ ${fmt(pendientes.importado.soles)} · US$ ${fmt(pendientes.importado.dolares)}`} />
+          <TarjetaAvance titulo="OC (local)" color="#2a6fc2" avance={pendientes.avance.local} pendiente={pendientes.local} mesTexto={mesLargo(pendientes.avance.mes)} />
+          <TarjetaAvance titulo="OI (importación)" color="#c27a1c" avance={pendientes.avance.importado} pendiente={pendientes.importado} mesTexto={mesLargo(pendientes.avance.mes)} />
         </div>
         <div className="ind-plazos">
           {pendientes.tarjetasPlazo.map(p => (

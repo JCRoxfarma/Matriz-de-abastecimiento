@@ -436,3 +436,14 @@ tbody tr.sel{background:#f2f5f9}
 .ind-mapa-imp{display:inline-block;font-size:9.5px;font-weight:600;color:#c27a1c;margin-top:1px}
 .ind-celda{height:28px;min-width:38px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:600;font-variant-numeric:tabular-nums}
 .ind-mapa-tot{font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ind-sec-acc{margin-left:auto}
+.ind-sec-acc select{min-width:190px;font-size:12.5px;padding:6px 10px}
+.ind-avance{background:var(--card);border:1px solid #dde1ea;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:18px}
+.ind-anillo{flex-shrink:0}
+.ind-anillo-txt{font-size:19px;font-weight:700;fill:var(--ink);font-variant-numeric:tabular-nums}
+.ind-avance-txt{min-width:0}
+.ind-avance-txt .lb{font-size:12px;font-weight:600;color:var(--ink2)}
+.ind-avance-txt .vl{font-size:26px;font-weight:600;letter-spacing:-.6px;line-height:1.15;margin-top:2px}
+.ind-avance-txt .vl span{font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:0}
+.ind-avance-txt .ft{font-size:11.5px;color:var(--ink3);margin-top:2px}
+.ind-avance-txt .ft2{font-size:11.5px;color:var(--ink2);margin-top:6px}
