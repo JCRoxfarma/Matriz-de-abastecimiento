@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabaseClient'
-import { fmt, fdate, fmtM } from './lib/derive'
+import { fmt, fdate, fmtM, separarMotivo, unirMotivo } from './lib/derive'
+import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
 import { ETAPAS, etapasVisibles, calcularEtapa, contarDocs, guardarSeguimientoOI } from './lib/seguimientoOI'
 
@@ -48,6 +49,9 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
   const [fechaProg, setFechaProg] = useState(row.fecha_programada_ingreso || '')
   const [ajuste, setAjuste] = useState(row.ajuste_cantidad || 0)
   const [motAjuste, setMotAjuste] = useState(row.motivo_ajuste || '')
+  const [mot, setMot] = useState(separarMotivo(row.motivo_demora).motivo)
+  const [det, setDet] = useState(separarMotivo(row.motivo_demora).detalle)
+  const [resp, setResp] = useState(row.responsable_accion || '')
   const [diasPostEta, setDiasPostEta] = useState(7)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -88,6 +92,12 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
       if (nuevoAjuste !== (row.ajuste_cantidad || 0) || nuevoMotivo !== (row.motivo_ajuste || null)) {
         ocPatch.ajuste_cantidad = nuevoAjuste
         ocPatch.motivo_ajuste = nuevoMotivo
+      }
+      // Motivo de demora y responsable tambien viven en programacion_oc.
+      const nuevoMotDemora = unirMotivo(mot, det)
+      if (nuevoMotDemora !== (row.motivo_demora || null) || (resp || null) !== (row.responsable_accion || null)) {
+        ocPatch.motivo_demora = nuevoMotDemora
+        ocPatch.responsable_accion = resp || null
       }
       if (Object.keys(ocPatch).length) {
         const { error } = await supabase.from('programacion_oc')
@@ -168,6 +178,14 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
                 )}
                 <div className="hint">Positivo para aumentar, negativo para reducir. Se guarda al presionar Guardar. El campo original del Excel no se modifica.</div>
               </div>
+            )}
+            {esEditor ? (
+              <MotivoDemora tipo="oi" mot={mot} setMot={setMot} det={det} setDet={setDet} resp={resp} setResp={setResp} />
+            ) : (row.motivo_demora || row.responsable_accion) && (
+              <>
+                <div className="kv"><span>Motivo de demora</span><b>{row.motivo_demora || 'sin motivo'}</b></div>
+                <div className="kv"><span>Responsable</span><b>{row.responsable_accion || 'sin asignar'}</b></div>
+              </>
             )}
             {row.fecha_real_ingreso && <div className="kv"><span>Fecha real de ingreso</span><b style={{ color: 'var(--grn)' }}>{fdate(row.fecha_real_ingreso)}</b></div>}
             <div className="kv"><span>Precio unitario</span><b>{fmtM(row.precio_unitario, row.moneda)}</b></div>

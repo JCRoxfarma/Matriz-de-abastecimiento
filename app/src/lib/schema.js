@@ -159,14 +159,9 @@ export const OPCIONES = {
     { valor: 'En riesgo', ayuda: 'No hay confirmación, hay demora o puede afectar producción' },
   ],
   requiere_almacen_externo: ['Si', 'No', 'Por evaluar'],
-  responsable_accion: ['Compras', 'Proveedor', 'Planeamiento', 'Almacén', 'Calidad'],
+  responsable_accion: ['Proveedor', 'Comercial', 'Finanzas', 'Comprador de materia prima', 'Transporte logístico', 'Agente aduanero / SUNAT', 'Compras', 'Planeamiento', 'Almacén', 'Calidad'],
   prioridad_produccion: ['Alta', 'Media', 'Baja'],
   riesgo_produccion: ['Sin riesgo', 'En seguimiento', 'En riesgo'],
-  motivo_demora: [
-    'Falta de stock proveedor',
-    'Demora producción proveedor',
-    'Demora logística / despacho',
-    'Ingreso parcial',
-    'Reprogramación interna',
-  ],
+  // Ver MOTIVOS_OC / MOTIVOS_OI en derive.js (con su responsable).
+  motivo_demora: ['Demora de proveedor', 'Cambio en la demanda', 'Falta de pagos', 'Falta de materia prima', 'Roleo de carga', 'Trámite aduanero', 'Otros'],
 }

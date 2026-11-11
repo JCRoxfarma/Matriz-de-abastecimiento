@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabaseClient'
-import { fmt, fmtM, fdate, days, SEM, CERRADAS, MOTIVOS, RESP, gestOpts } from './lib/derive'
+import { fmt, fmtM, fdate, days, SEM, CERRADAS, gestOpts, separarMotivo, unirMotivo } from './lib/derive'
+import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
 
 export default function Panel({ row, esEditor, onClose, onSaved }) {
   const opcionesGestion = gestOpts(row)
   const [ges, setGes] = useState(opcionesGestion.includes(row.estado_gestion) ? row.estado_gestion : opcionesGestion[0])
-  const [mot, setMot] = useState(row.motivo_demora || '')
+  const [mot, setMot] = useState(separarMotivo(row.motivo_demora).motivo)
+  const [det, setDet] = useState(separarMotivo(row.motivo_demora).detalle)
   const [resp, setResp] = useState(row.responsable_accion || '')
   const [fec, setFec] = useState(row.fecha_programada_ingreso || '')
   const [fecConf, setFecConf] = useState(row.fecha_confirmada || '')
@@ -38,7 +40,7 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
 
   async function guardar() {
     setSaving(true)
-    const patch = { estado_gestion: ges, motivo_demora: mot || null, responsable_accion: resp || null, observaciones: com || null, fecha_confirmada: fecConf || null, ajuste_cantidad: Number(ajuste) || 0, motivo_ajuste: motAjuste || null }
+    const patch = { estado_gestion: ges, motivo_demora: unirMotivo(mot, det), responsable_accion: resp || null, observaciones: com || null, fecha_confirmada: fecConf || null, ajuste_cantidad: Number(ajuste) || 0, motivo_ajuste: motAjuste || null }
     if (fec && fec !== row.fecha_programada_ingreso) {
       const hist = [...(row.hist || []), { de: row.fecha_programada_ingreso, a: fec, motivo: patch.motivo_demora, resp: patch.responsable_accion, coment: com }]
       patch.historial = hist
@@ -172,18 +174,7 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
                         : 'Todavia no ingresa nada. Si la cierras se registrara como cierre con saldo, revisa antes con el proveedor.')}
                   </div>
                 </div>
-                <div className="fld">
-                  <label>Motivo de demora</label>
-                  <select value={mot} onChange={e => setMot(e.target.value)}>
-                    {MOTIVOS.map(v => <option key={v || 'none'} value={v}>{v || 'sin motivo'}</option>)}
-                  </select>
-                </div>
-                <div className="fld">
-                  <label>Responsable de la accion</label>
-                  <select value={resp} onChange={e => setResp(e.target.value)}>
-                    {RESP.map(v => <option key={v || 'none'} value={v}>{v || 'sin asignar'}</option>)}
-                  </select>
-                </div>
+                <MotivoDemora tipo="oc" mot={mot} setMot={setMot} det={det} setDet={setDet} resp={resp} setResp={setResp} />
                 <div className="fld">
                   <label>Nueva fecha solicitada</label>
                   <input type="date" value={fec || ''} onChange={e => setFec(e.target.value)} />

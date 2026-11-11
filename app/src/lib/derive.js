@@ -46,8 +46,41 @@ export const EST_TAG = { Completo: 't-grn', Pendiente: 't-blu' }
 export const GES_TAG = { 'En seguimiento': 't-blu', Reprogramado: 't-amb', Atrasado: 't-red', Cerrado: 't-gry', 'Orden Anulada': 't-red' }
 export const CONF_TAG = { Pendiente: 't-amb', Confirmada: 't-grn' }
 
-export const MOTIVOS = ['', 'Falta de stock proveedor', 'Demora producción proveedor', 'Demora logística / despacho', 'Ingreso parcial', 'Cambio de demanda (planificación)', 'Reprogramación interna']
-export const RESP = ['', 'Compras', 'Proveedor', 'Planeamiento', 'Almacén', 'Calidad']
+// Motivos de demora / reprogramacion y su responsable (definidos por
+// Johany, noviembre 2026). "Otros" lleva el motivo escrito
+// ("Otros: <texto>") y el responsable se elige a mano.
+export const MOTIVOS_OC = [
+  { motivo: 'Demora de proveedor', responsable: 'Proveedor' },
+  { motivo: 'Cambio en la demanda', responsable: 'Comercial' },
+  { motivo: 'Falta de pagos', responsable: 'Finanzas' },
+  { motivo: 'Falta de materia prima', responsable: 'Comprador de materia prima' },
+  { motivo: 'Otros', responsable: null },
+]
+// En importaciones, ademas: roleo de carga y tramite aduanero.
+export const MOTIVOS_OI = [
+  ...MOTIVOS_OC.filter(m => m.motivo !== 'Otros'),
+  { motivo: 'Roleo de carga', responsable: 'Transporte logístico' },
+  { motivo: 'Trámite aduanero', responsable: 'Agente aduanero / SUNAT' },
+  { motivo: 'Otros', responsable: null },
+]
+export const RESP = ['', 'Proveedor', 'Comercial', 'Finanzas', 'Comprador de materia prima', 'Transporte logístico', 'Agente aduanero / SUNAT', 'Compras', 'Planeamiento', 'Almacén', 'Calidad']
+
+export const responsableDeMotivo = motivo => MOTIVOS_OI.find(m => m.motivo === motivo)?.responsable || null
+
+// motivo_demora guardado -> { motivo, detalle } para el formulario. Un
+// motivo de la lista anterior (ej. "Ingreso parcial") se muestra como
+// "Otros" con ese texto, para no perderlo.
+export function separarMotivo(valor) {
+  const v = (valor || '').trim()
+  if (!v) return { motivo: '', detalle: '' }
+  if (v === 'Otros') return { motivo: 'Otros', detalle: '' }
+  if (v.startsWith('Otros:')) return { motivo: 'Otros', detalle: v.slice(6).trim() }
+  if (MOTIVOS_OI.some(m => m.motivo === v)) return { motivo: v, detalle: '' }
+  return { motivo: 'Otros', detalle: v }
+}
+
+export const unirMotivo = (motivo, detalle) => !motivo ? null
+  : motivo === 'Otros' ? (detalle.trim() ? `Otros: ${detalle.trim()}` : 'Otros') : motivo
 export const G_ACT = ['En seguimiento', 'Reprogramado', 'Atrasado']
 
 export function gestOpts(r) {
