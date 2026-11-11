@@ -47,9 +47,12 @@ function evaluarEntrega(r, base, ultimaLlegada, hoy) {
   const prog = r.progEfectivo || 0
   const ingresado = r.cant_ingresada || 0
   const completo = prog > 0 && ingresado >= prog * MINIMO_COMPLETO
-  // Fecha en que quedo completa: la real de la entrega o, si se cerro con
-  // tolerancia, el ultimo ingreso de esa OC + SKU.
-  const llegada = completo ? (r.fecha_real_ingreso || ultimaLlegada.get(`${r.oc}|${r.sku}`) || null) : null
+  // Fecha de llegada: la real de la entrega (cuando se completo) o, si no
+  // la tiene (llego incompleta o se cerro con tolerancia), el ultimo
+  // ingreso de esa OC + SKU. "A tiempo" se mide aunque haya llegado
+  // incompleta: OTIF exige ademas que este completa, por eso OTIF siempre
+  // es menor o igual que A tiempo.
+  const llegada = r.fecha_real_ingreso || (ingresado > 0 ? ultimaLlegada.get(`${r.oc}|${r.sku}`) || null : null)
   const aTiempo = !!llegada && llegada <= compromiso
   // Atraso solo de lo que ya llego: lo vencido que aun no llega se ve
   // aparte (Atrasadas hoy) y no infla el promedio.
