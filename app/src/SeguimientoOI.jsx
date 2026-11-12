@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fmt, fdate, enrich, nombreMes } from './lib/derive'
+import { fmt, fdate, enrich, nombreMes, categoriaDe } from './lib/derive'
 import { cargarOI, ETAPAS, etapaLabel, calcularEtapa } from './lib/seguimientoOI'
 import PanelOI from './PanelOI'
 import EnviarRecordatorios from './EnviarRecordatorios'
@@ -75,9 +75,10 @@ function propsCelda(c) {
   }
 }
 
-export default function SeguimientoOI() {
+export default function SeguimientoOI({ categoria = '' }) {
   const { perfil } = useSesion()
-  const [rows, setRows] = useState([])
+  const [todas, setRows] = useState([])
+  const rows = useMemo(() => categoria ? todas.filter(r => categoriaDe(r) === categoria) : todas, [todas, categoria])
   const [mostrarEstatus, setMostrarEstatus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)

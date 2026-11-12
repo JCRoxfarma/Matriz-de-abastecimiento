@@ -111,6 +111,17 @@ de importaciones) (`app/src/lib/importer.js`), y:
   sentido (base de datos → Excel): el archivo de Johany no se actualiza
   solo, porque vive en su computadora y no en la nube.
 
+## Categorías: material de empaque y producto terminado (noviembre 2026)
+
+Johany ve dos categorías. El Excel no trae el tipo, así que la categoría se
+calcula por el proveedor (`categoriaDe` en `app/src/lib/derive.js`): CIFARMA
+y GABBLAN son **Producto terminado**; todo lo demás es **Material de
+empaque**. El selector Todos / Material de empaque / Producto terminado (a la
+derecha de las pestañas, se recuerda en el navegador) filtra Seguimiento OC,
+Seguimiento OI, Indicadores y los correos. No toca la base de datos ni la
+explosión de materiales. Si se agrega otro proveedor de producto terminado,
+se suma a `PROV_PT`.
+
 ## Indicadores (noviembre 2026)
 
 Pestaña **Indicadores** (`app/src/Indicadores.jsx`), visible para todos.

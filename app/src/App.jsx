@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { useSesion } from './lib/auth'
-import { fmt, fdate, nombreMes, enrich, withEntregas, SEM, EST_TAG, GES_TAG, CONF_TAG } from './lib/derive'
+import { fmt, fdate, nombreMes, enrich, withEntregas, categoriaDe, CATEGORIAS, SEM, EST_TAG, GES_TAG, CONF_TAG } from './lib/derive'
 import { fetchAll } from './lib/importer'
 import Panel from './Panel'
 import EnviarRecordatorios from './EnviarRecordatorios'
@@ -110,7 +110,11 @@ export default function App() {
     setRows(prev => withEntregas(prev.map(r => r.id_entrega === id ? enrich({ ...r, ...patch }) : r).map(r => ({ ...r }))))
   }
 
-  const rowsOC = useMemo(() => rows.filter(r => r.origen !== 'Importado'), [rows])
+  // Categoria elegida arriba ('' = todas). Se recuerda en este navegador.
+  const [categoria, setCategoriaSt] = useState(() => { try { return localStorage.getItem('categoria') || '' } catch { return '' } })
+  const setCategoria = c => { setCategoriaSt(c); try { localStorage.setItem('categoria', c) } catch { /* sin almacenamiento */ } }
+  const rowsCat = useMemo(() => categoria ? rows.filter(r => categoriaDe(r) === categoria) : rows, [rows, categoria])
+  const rowsOC = useMemo(() => rowsCat.filter(r => r.origen !== 'Importado'), [rowsCat])
 
   function matchRow(r, skip) {
     const qq = q.trim().toLowerCase()
@@ -294,9 +298,16 @@ export default function App() {
             <Icono nombre={ic} tam={17} /> {lb}
           </button>
         ))}
+        {vista !== 'explosion' && vista !== 'archivos' && (
+          <div className="cat-sel" role="group" aria-label="Categoría">
+            {[['', 'Todos'], ...CATEGORIAS.map(c => [c, c])].map(([v, lb]) => (
+              <button key={lb} className={categoria === v ? 'act' : ''} onClick={() => setCategoria(v)}>{lb}</button>
+            ))}
+          </div>
+        )}
       </nav>
 
-      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rows} /> : vista === 'archivos' ? <Archivos esEditor={esEditor} onImportado={cargar} /> : <>
+      {vista === 'oi' ? <SeguimientoOI categoria={categoria} /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rowsCat} /> : vista === 'archivos' ? <Archivos esEditor={esEditor} onImportado={cargar} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>

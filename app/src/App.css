@@ -539,3 +539,8 @@ tbody tr.sel{background:#f2f5f9}
 .expl-conteo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .expl-conteo .btn{font-size:12px;padding:5px 10px}
 .expl-filtros .oc-filtros select{min-width:0}
+.cat-sel{margin-left:auto;display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.cat-sel button{font:inherit;font-size:12.5px;border:none;background:none;border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--ink2);white-space:nowrap}
+.cat-sel button:hover{color:var(--ink)}
+.cat-sel button.act{background:var(--card);color:var(--acc);font-weight:600;box-shadow:0 1px 3px rgba(0,22,123,.12)}
+@media (max-width:900px){.cat-sel{margin-left:0}}

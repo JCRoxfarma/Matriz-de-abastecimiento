@@ -149,3 +149,10 @@ export function enrich(r) {
   const estadoIngreso = abierto ? 'Pendiente' : 'Completo'
   return { ...r, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
 }
+
+// Categoria de cada linea. El Excel no trae el tipo: el producto terminado
+// se reconoce por el proveedor (por ahora solo Cifarma y Gabblan, definido
+// por Johany en nov-2026); todo lo demas es material de empaque.
+export const CATEGORIAS = ['Material de empaque', 'Producto terminado']
+const PROV_PT = /cifarma|gab+lan/i
+export const categoriaDe = r => PROV_PT.test(r?.proveedor || '') ? 'Producto terminado' : 'Material de empaque'
