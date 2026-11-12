@@ -16,6 +16,18 @@ export async function ultimasImportaciones() {
   return porTipo
 }
 
+// Historial de importaciones (pestana Archivos), de la mas reciente a la
+// mas antigua.
+export async function listarImportaciones(limite = 20) {
+  const { data, error } = await supabase
+    .from('importaciones')
+    .select('tipo,archivo,filas,creado_en')
+    .order('creado_en', { ascending: false })
+    .limit(limite)
+  if (error) throw error
+  return data
+}
+
 export function hace(fechaIso) {
   const ms = Date.now() - new Date(fechaIso).getTime()
   const min = Math.round(ms / 60000)

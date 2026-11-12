@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { useSesion } from './lib/auth'
 import { fmt, fdate, nombreMes, enrich, withEntregas, SEM, EST_TAG, GES_TAG, CONF_TAG } from './lib/derive'
-import { ultimasImportaciones, hace } from './lib/importaciones'
 import { fetchAll } from './lib/importer'
 import Panel from './Panel'
 import EnviarRecordatorios from './EnviarRecordatorios'
 import ComunicarAlmacen from './ComunicarAlmacen'
-import ImportButton from './ImportButton'
-import ImportIngresosButton from './ImportIngresosButton'
+import Archivos from './Archivos'
+import Icono from './Icono'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
 import Indicadores from './Indicadores'
@@ -70,10 +69,10 @@ export default function App() {
   const [fMes, setFMes] = useState('')
   const [fConf, setFConf] = useState('')
   const [quick, setQuick] = useState('')
+  const [masFiltros, setMasFiltros] = useState(false)
   const [soloTol, setSoloTol] = useState(false)
   const [sortK, setSortK] = useState('sem2')
   const [sortD, setSortD] = useState(1)
-  const [importaciones, setImportaciones] = useState({})
 
   async function cargar() {
     setLoading(true)
@@ -87,7 +86,6 @@ export default function App() {
       return
     }
     setLoading(false)
-    ultimasImportaciones().then(setImportaciones).catch(() => {})
   }
 
   // Ojo: Supabase renueva el token de sesion cada vez que vuelves a la
@@ -155,25 +153,19 @@ export default function App() {
     const ab = rowsOC.filter(r => r.abierto)
     const at = ab.filter(r => r.sem2 === 'atrasado')
     const pl = ab.filter(r => r.sem2 === 'porllegar')
-    const sf = ab.filter(r => r.sem2 === 'sinfecha')
     const vs = ab.filter(r => r.moneda === 'SOLES').reduce((a, r) => a + (r.valor_pendiente || 0), 0)
     const vd = ab.filter(r => r.moneda !== 'SOLES').reduce((a, r) => a + (r.valor_pendiente || 0), 0)
     const pc = ab.filter(r => r.estado_confirmacion === 'Pendiente').length
-    const rp = rowsOC.filter(r => r.hist.length).length
-    const tl = rowsOC.filter(r => r.dentroTolerancia).length
     const fd = rowsOC.filter(r => r.fueraTolerancia).length
-    const cc = rowsOC.length - ab.length - tl - fd
+    // Seis tarjetas, como en el diseño de referencia de Johany. Las demás
+    // vistas (reprogramadas, sin fecha, cerradas) siguen en los filtros.
     return [
-      { id: '', lb: 'Lineas totales', vl: rowsOC.length, ft: 'entregas programadas', cl: '' },
-      { id: 'abierto', lb: 'Abiertas', vl: ab.length, ft: 'con saldo pendiente', cl: '' },
-      { id: 'atrasado', lb: 'Atrasadas', vl: at.length, ft: 'pasaron su fecha', cl: 'r' },
-      { id: 'sinfecha', lb: 'Sin fecha programada', vl: sf.length, ft: 'necesitan fecha', cl: 'a' },
-      { id: 'porllegar', lb: 'Llegan en 7 dias', vl: pl.length, ft: 'ventana inmediata', cl: 'a' },
-      { id: 'repro', lb: 'Reprogramadas', vl: rp, ft: 'con fecha movida', cl: 'a' },
-      { id: 'sinconf', lb: 'Sin confirmar', vl: pc, ft: 'pendientes de confirmacion', cl: pc > 0 ? 'a' : '' },
-      { id: 'desviado', lb: 'Cerradas fuera de tolerancia', vl: fd, ft: 'revisar si afecta el abastecimiento', cl: fd > 0 ? 'r' : '' },
-      { id: 'cerrado', lb: 'Cerradas', vl: cc + tl + fd, ft: `${fmt(cc)} exactas, ${fmt(tl)} en tolerancia, ${fmt(fd)} fuera de tolerancia`, cl: 'g' },
-      { id: 'valor', lb: 'Valor pendiente', vl: `S/ ${fmt(vs)}`, ft: `mas US$ ${fmt(vd)}`, cl: '' },
+      { id: 'abierto', lb: 'OC abiertas', vl: ab.length, ic: 'carrito', tono: 'azul' },
+      { id: 'atrasado', lb: 'Atrasadas', vl: at.length, ic: 'alerta', tono: 'rojo' },
+      { id: 'porllegar', lb: 'Llegan en 7 días', vl: pl.length, ic: 'calendario', tono: 'ambar' },
+      { id: 'sinconf', lb: 'Sin confirmar', vl: pc, ic: 'reloj', tono: 'ambar' },
+      { id: 'desviado', lb: 'Fuera de tolerancia', vl: fd, ic: 'diana', tono: 'rojo' },
+      { id: 'valor', lb: 'Valor pendiente', vl: `S/ ${fmt(vs)}`, ft: `+ US$ ${fmt(vd)}`, ic: 'monedas', tono: 'azul' },
     ]
   }, [rowsOC])
 
@@ -262,88 +254,113 @@ export default function App() {
 
   return (
     <div className="wrap">
-      <header>
-        <div>
-          <h1>Seguimiento de materiales de empaque</h1>
-          <div className="sub">Ordenes de compra programadas y su estado real de ingreso a almacen</div>
-          <div className="ultimasImp">
-            {importaciones.programacion && (
-              <span>Ultimo Excel: <b>{importaciones.programacion.archivo}</b> ({hace(importaciones.programacion.creado_en)})</span>
-            )}
-            {importaciones.ingresos && (
-              <span>Ultimos ingresos: <b>{importaciones.ingresos.archivo}</b> ({hace(importaciones.ingresos.creado_en)})</span>
-            )}
+      <header className="enc">
+        <div className="enc-izq">
+          <div className="marca">Roxfarma</div>
+          <div>
+            <h1>Seguimiento de materiales de empaque</h1>
+            <div className="sub">Órdenes de compra programadas y estado real de ingreso a almacén</div>
           </div>
         </div>
-        <div className="corte">
+        <div className="enc-der">
           <div className="usr">
             {perfil.nombre} · {esEditor ? 'puede editar' : 'solo ver'}
-            <button className="btn" onClick={() => supabase.auth.signOut()}>Cerrar sesion</button>
+            <button className="btn" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
           </div>
-          Fecha de corte
-          <b>{new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}</b>
+          <div className="corte-box">
+            <Icono nombre="calendario" tam={16} />
+            Fecha de corte: <b>{new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}</b>
+          </div>
         </div>
       </header>
 
-      <div className="bar" style={{ marginBottom: 14 }}>
-        <button className={`btn ${vista === 'oc' ? 'act' : ''}`} onClick={() => setVista('oc')}>Seguimiento OC</button>
-        <button className={`btn ${vista === 'oi' ? 'act' : ''}`} onClick={() => setVista('oi')}>Seguimiento OI</button>
-        <button className={`btn ${vista === 'explosion' ? 'act' : ''}`} onClick={() => setVista('explosion')}>Explosión de materiales</button>
-        <button className={`btn ${vista === 'indicadores' ? 'act' : ''}`} onClick={() => setVista('indicadores')}>Indicadores</button>
-      </div>
+      <nav className="tabs">
+        {[
+          ['oc', 'Seguimiento OC', 'caja'],
+          ['oi', 'Seguimiento OI', 'portapapeles'],
+          ['explosion', 'Explosión de materiales', 'capas'],
+          ['indicadores', 'Indicadores', 'grafico'],
+          ['archivos', 'Archivos', 'carpeta'],
+        ].map(([id, lb, ic]) => (
+          <button key={id} className={`tab ${vista === id ? 'act' : ''}`} onClick={() => setVista(id)}>
+            <Icono nombre={ic} tam={17} /> {lb}
+          </button>
+        ))}
+      </nav>
 
-      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rows} /> : <>
+      {vista === 'oi' ? <SeguimientoOI /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rows} /> : vista === 'archivos' ? <Archivos esEditor={esEditor} onImportado={cargar} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>
-          <div className="kpis">
+          <div className="kpis2">
             {kpis.map(k => (
-              <div key={k.lb} className={`kpi ${k.cl} ${quick === k.id && k.id ? 'on' : ''}`}
-                onClick={() => { if (!k.id || k.id === 'valor') return; setQuick(q => q === k.id ? '' : k.id) }}>
+              <div key={k.lb} className={`kpi2 ${k.tono} ${quick === k.id ? 'on' : ''} ${k.id === 'valor' ? 'fijo' : ''}`}
+                title={k.id === 'valor' ? '' : 'Clic para filtrar la tabla'}
+                onClick={() => { if (k.id === 'valor') return; setQuick(q => q === k.id ? '' : k.id) }}>
+                <Icono nombre={k.ic} tam={24} />
                 <div className="lb">{k.lb}</div>
                 <div className="vl">{typeof k.vl === 'number' ? fmt(k.vl) : k.vl}</div>
-                <div className="ft">{k.ft}</div>
+                {k.ft && <div className="ft">{k.ft}</div>}
               </div>
             ))}
           </div>
 
-          <div className="bar">
-            <input type="text" placeholder="Buscar por OC, SKU, descripcion o proveedor" value={qInput} onChange={e => setQInput(e.target.value)} />
-            <select value={fEst} onChange={e => setFEst(e.target.value)}>
-              <option value="">Todos los estados</option>
-              {CAT_EST.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={fGes} onChange={e => setFGes(e.target.value)}>
-              <option value="">Toda gestion</option>
-              {CAT_GES.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={fProv} onChange={e => setFProv(e.target.value)}>
-              <option value="">Todos los proveedores</option>
-              {proveedores.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={fComp} onChange={e => setFComp(e.target.value)}>
-              <option value="">Todos los compradores</option>
-              {compradores.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={fMes} onChange={e => setFMes(e.target.value)}>
-              <option value="">Todos los meses</option>
-              {meses.map(m => <option key={m.valor} value={m.valor}>{m.etiqueta}</option>)}
-            </select>
-            <select value={fConf} onChange={e => setFConf(e.target.value)}>
-              <option value="">Toda confirmacion</option>
-              <option value="Pendiente">Pendiente</option>
-              <option value="Confirmada">Confirmada</option>
-            </select>
-            <button className={`btn ${soloTol ? 'act' : ''}`} onClick={() => setSoloTol(v => !v)}>Solo tolerancia</button>
-            <button className="btn" onClick={limpiar}>Limpiar</button>
-            {esEditor && <ImportButton onDone={cargar} />}
-            {esEditor && <ImportIngresosButton onDone={cargar} />}
-            <ExportButton />
-            {esEditor && <button className="btn" onClick={() => setMostrarComunicar(true)}>Comunicar a almacen</button>}
-            <button className="btn" onClick={() => setMostrarConfirmaciones(true)}>Ver confirmaciones</button>
-            {esEditor && <button className="btn" onClick={() => setMostrarEnviar(true)}>Enviar recordatorios</button>}
-            <span className="count">{fmt(filtradas.length)} lineas | {fmt(filtradas.filter(r => r.abierto).length)} abiertas</span>
-          </div>
+          <section className="oc-card">
+            <div className="oc-card-h">
+              <h2><Icono nombre="carrito" tam={22} /> Órdenes de compra</h2>
+              <div className="oc-acc">
+                <ExportButton />
+                {esEditor && <button className="btn" onClick={() => setMostrarComunicar(true)}><Icono nombre="camion" tam={16} /> Comunicar a almacén</button>}
+                <button className="btn" onClick={() => setMostrarConfirmaciones(true)}><Icono nombre="lista" tam={16} /> Ver confirmaciones</button>
+                {esEditor && <button className="btn act" onClick={() => setMostrarEnviar(true)}><Icono nombre="campana" tam={16} /> Enviar recordatorios</button>}
+              </div>
+            </div>
+
+            <div className="oc-filtros">
+              <input type="text" placeholder="Buscar por OC, SKU, descripción o proveedor" value={qInput} onChange={e => setQInput(e.target.value)} />
+              <select value={fEst} onChange={e => setFEst(e.target.value)}>
+                <option value="">Todos los estados</option>
+                {CAT_EST.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={fMes} onChange={e => setFMes(e.target.value)}>
+                <option value="">Todos los meses</option>
+                {meses.map(m => <option key={m.valor} value={m.valor}>{m.etiqueta}</option>)}
+              </select>
+              <select value={fProv} onChange={e => setFProv(e.target.value)}>
+                <option value="">Todos los proveedores</option>
+                {proveedores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={fComp} onChange={e => setFComp(e.target.value)}>
+                <option value="">Todos los compradores</option>
+                {compradores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {(() => {
+                const activos = [fGes, fConf, soloTol].filter(Boolean).length
+                return (
+                  <button className={`btn btn-filtro ${masFiltros || activos ? 'on' : ''}`} onClick={() => setMasFiltros(v => !v)}>
+                    <Icono nombre="filtro" tam={15} /> Más filtros{activos ? ` (${activos})` : ''}
+                  </button>
+                )
+              })()}
+            </div>
+            {masFiltros && (
+              <div className="oc-filtros oc-filtros-mas">
+                <select value={fGes} onChange={e => setFGes(e.target.value)}>
+                  <option value="">Toda gestión</option>
+                  {CAT_GES.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <select value={fConf} onChange={e => setFConf(e.target.value)}>
+                  <option value="">Toda confirmación</option>
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="Confirmada">Confirmada</option>
+                </select>
+                <button className={`btn ${soloTol ? 'act' : ''}`} onClick={() => setSoloTol(v => !v)}>Solo tolerancia</button>
+              </div>
+            )}
+            <div className="oc-conteo">
+              <span>{fmt(filtradas.length)} líneas · {fmt(filtradas.filter(r => r.abierto).length)} abiertas</span>
+              <button className="btn-link" onClick={limpiar}>Limpiar filtros</button>
+            </div>
 
           <div className="tw">
             <div className="scroll">
@@ -368,6 +385,7 @@ export default function App() {
               {filtradas.length === 0 && <div className="empty">No hay entregas con estos filtros.</div>}
             </div>
           </div>
+          </section>
         </>
       )}
       </>}

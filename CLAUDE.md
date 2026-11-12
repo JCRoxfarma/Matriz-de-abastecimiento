@@ -66,7 +66,8 @@ empaque. La usan compras, planeamiento y almacén.
 
 Los datos "de verdad" viven en Supabase, no en el Excel. El Excel de Johany
 (`ProgramacionOC` + `IngresosSistema`) se sube desde el botón **Importar
-Excel** de la app (`app/src/lib/importer.js`), y:
+Excel** de la pestaña **Archivos** (`app/src/Archivos.jsx`, con el historial
+de importaciones) (`app/src/lib/importer.js`), y:
 
 - `programacion_oc` se actualiza por `upsert`, usando la columna **ID
   entrega** como llave. El importador nunca confía en la columna "ID
