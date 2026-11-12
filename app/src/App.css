@@ -351,7 +351,7 @@ tbody tr.sel{background:#f2f5f9}
 .conf-stat-num{font-size:22px;font-weight:700;color:var(--ink)}
 .conf-stat-lb{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px;font-weight:500}
 .conf-lista-prov{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto}
-.conf-prov{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.conf-prov{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card);flex-shrink:0}
 .conf-prov-ok{border-color:var(--grn);background:var(--grnbg)}
 .conf-prov-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;gap:12px;flex-wrap:wrap}
 .conf-prov-head:hover{background:var(--bg)}
