@@ -4,10 +4,20 @@ import { cargarOI, ETAPAS, etapaLabel, calcularEtapa } from './lib/seguimientoOI
 import PanelOI from './PanelOI'
 import EnviarRecordatorios from './EnviarRecordatorios'
 import { useSesion } from './lib/auth'
+import Icono from './Icono'
 
 const ETAPA_SHORT = {
   1: 'Producción', 2: 'Recojo', 3: 'En tránsito', 4: 'Documentos',
   5: 'Numeración', 6: 'Pago', 7: 'Desaduanaje', 8: 'Ingreso', 9: 'Completado',
+}
+
+// Grupos de las 4 tarjetas de arriba (clic = filtrar la tabla). El detalle
+// por etapa esta en el desplegable de etapas.
+const GRUPOS = {
+  abiertas: r => r.etapa !== 9,
+  prod: r => r.etapa === 1,
+  trans: r => r.etapa === 2 || r.etapa === 3,
+  nac: r => r.etapa >= 4 && r.etapa <= 8,
 }
 
 const ETAPA_ICON = {
@@ -75,6 +85,7 @@ export default function SeguimientoOI() {
 
   const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
+  const [fGrupo, setFGrupo] = useState('')
   const [fEtapa, setFEtapa] = useState('')
   const [fProv, setFProv] = useState('')
   const [fComp, setFComp] = useState('')
@@ -109,19 +120,14 @@ export default function SeguimientoOI() {
   const compradores = useMemo(() => [...new Set(rows.map(r => r.comprador).filter(Boolean))].sort(), [rows])
 
   const kpis = useMemo(() => {
-    const byEtapa = {}
-    for (let i = 1; i <= 9; i++) byEtapa[i] = 0
-    rows.forEach(r => { byEtapa[r.etapa] = (byEtapa[r.etapa] || 0) + 1 })
+    const n = g => rows.filter(GRUPOS[g]).length
+    const cuenta = e => rows.filter(r => r.etapa === e).length
+    const nac = [4, 5, 6, 7, 8].map(e => [ETAPA_SHORT[e], cuenta(e)]).filter(x => x[1]).map(x => `${x[1]} ${x[0].toLowerCase()}`)
     return [
-      { id: '', lb: 'Total OI', vl: rows.length, cl: '', icon: '📊' },
-      { id: '1', lb: 'Producción', vl: byEtapa[1], cl: byEtapa[1] > 0 ? 'a' : '', icon: '🏭' },
-      { id: '3', lb: 'En tránsito', vl: byEtapa[2] + byEtapa[3], cl: '', icon: '🚢' },
-      { id: '4', lb: 'Documentos', vl: byEtapa[4], cl: '', icon: '📄' },
-      { id: '5', lb: 'Numeración', vl: byEtapa[5], cl: '', icon: '📋' },
-      { id: '6', lb: 'Pago', vl: byEtapa[6], cl: byEtapa[6] > 0 ? 'r' : '', icon: '💰' },
-      { id: '7', lb: 'Desaduanaje', vl: byEtapa[7], cl: byEtapa[7] > 0 ? 'a' : '', icon: '🏛' },
-      { id: '8', lb: 'Ingreso', vl: byEtapa[8], cl: '', icon: '📦' },
-      { id: '9', lb: 'Completadas', vl: byEtapa[9], cl: 'g', icon: '✅' },
+      { id: 'abiertas', lb: 'OI abiertas', vl: n('abiertas'), ic: 'caja', tono: 'azul', ft: `de ${fmt(rows.length)} líneas · ${fmt(cuenta(9))} completadas` },
+      { id: 'prod', lb: 'En producción', vl: n('prod'), ic: 'reloj', tono: 'ambar', ft: 'esperando fin de producción' },
+      { id: 'trans', lb: 'En tránsito', vl: n('trans'), ic: 'camion', tono: 'azul', ft: `${fmt(cuenta(2))} por recoger · ${fmt(cuenta(3))} en viaje` },
+      { id: 'nac', lb: 'Nacionalización e ingreso', vl: n('nac'), ic: 'portapapeles', tono: n('nac') ? 'rojo' : 'azul', ft: nac.length ? nac.join(' · ') : 'ninguna en aduana' },
     ]
   }, [rows])
 
@@ -132,10 +138,8 @@ export default function SeguimientoOI() {
         const busca = `${r.oc} ${r.sku} ${r.descripcion || ''} ${r.proveedor || ''} ${r.comprador || ''}`.toLowerCase()
         if (!busca.includes(qq)) return false
       }
-      if (fEtapa) {
-        if (fEtapa === '3') { if (r.etapa !== 2 && r.etapa !== 3) return false }
-        else if (Number(fEtapa) !== r.etapa) return false
-      }
+      if (fGrupo && !GRUPOS[fGrupo](r)) return false
+      if (fEtapa && Number(fEtapa) !== r.etapa) return false
       if (fProv && r.proveedor !== fProv) return false
       if (fComp && r.comprador !== fComp) return false
       return true
@@ -147,7 +151,7 @@ export default function SeguimientoOI() {
       return (x > y ? 1 : x < y ? -1 : 0) * sortD
     })
     return out
-  }, [rows, q, fEtapa, fProv, fComp, sortK, sortD])
+  }, [rows, q, fGrupo, fEtapa, fProv, fComp, sortK, sortD])
 
   const selected = rows.find(r => r.id_entrega === selectedId)
 
@@ -235,30 +239,45 @@ export default function SeguimientoOI() {
       {err && <div className="empty">No se pudo cargar: {err}</div>}
       {loading ? <div className="empty">Cargando OI...</div> : (
         <>
-          <div className="kpis">
+          <div className="kpis2">
             {kpis.map(k => (
-              <div key={k.lb} className={`kpi ${k.cl} ${fEtapa === k.id && k.id ? 'on' : ''}`}
-                onClick={() => { if (!k.id) return; setFEtapa(prev => prev === k.id ? '' : k.id) }}>
-                <div className="lb">{k.icon} {k.lb}</div>
+              <div key={k.id} className={`kpi2 ${k.tono} ${fGrupo === k.id ? 'on' : ''}`} title="Clic para filtrar la tabla"
+                onClick={() => { setFGrupo(g => g === k.id ? '' : k.id); setFEtapa('') }}>
+                <Icono nombre={k.ic} tam={24} />
+                <div className="lb">{k.lb}</div>
                 <div className="vl">{fmt(k.vl)}</div>
+                <div className="ft">{k.ft}</div>
               </div>
             ))}
           </div>
 
-          <div className="bar">
-            <input type="text" placeholder="Buscar por OI, SKU, material o proveedor" value={qInput} onChange={e => setQInput(e.target.value)} />
-            <select value={fProv} onChange={e => setFProv(e.target.value)}>
-              <option value="">Todos los proveedores</option>
-              {proveedores.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={fComp} onChange={e => setFComp(e.target.value)}>
-              <option value="">Todos los compradores</option>
-              {compradores.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <button className="btn" onClick={() => { setQInput(''); setQ(''); setFEtapa(''); setFProv(''); setFComp('') }}>Limpiar</button>
-            {esEditor && <button className="btn" onClick={() => setMostrarEstatus(true)}>Solicitar estatus a proveedores</button>}
-            <span className="count">{fmt(filtradas.length)} líneas OI</span>
-          </div>
+          <section className="oc-card">
+            <div className="oc-card-h">
+              <h2><Icono nombre="camion" tam={22} /> Órdenes de importación</h2>
+              <div className="oc-acc">
+                {esEditor && <button className="btn act" onClick={() => setMostrarEstatus(true)}><Icono nombre="campana" tam={16} /> Solicitar estatus a proveedores</button>}
+              </div>
+            </div>
+
+            <div className="oc-filtros">
+              <input type="text" placeholder="Buscar por OI, SKU, material o proveedor" value={qInput} onChange={e => setQInput(e.target.value)} />
+              <select value={fEtapa} onChange={e => { setFEtapa(e.target.value); setFGrupo('') }}>
+                <option value="">Todas las etapas</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(e => <option key={e} value={e}>{ETAPA_SHORT[e]}</option>)}
+              </select>
+              <select value={fProv} onChange={e => setFProv(e.target.value)}>
+                <option value="">Todos los proveedores</option>
+                {proveedores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={fComp} onChange={e => setFComp(e.target.value)}>
+                <option value="">Todos los compradores</option>
+                {compradores.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div className="oc-conteo">
+              <span>{fmt(filtradas.length)} líneas OI</span>
+              <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
+            </div>
 
           <div className="tw">
             <div className="scroll">
@@ -283,6 +302,7 @@ export default function SeguimientoOI() {
               {filtradas.length === 0 && <div className="empty">No hay OI con estos filtros.</div>}
             </div>
           </div>
+          </section>
         </>
       )}
 
