@@ -67,6 +67,10 @@ export default function App() {
   const [fProv, setFProv] = useState('')
   const [fComp, setFComp] = useState('')
   const [fMes, setFMes] = useState('')
+  // Rango de dias (fecha efectiva: confirmada o programada). Para un solo
+  // dia se pone la misma fecha en Desde y Hasta.
+  const [fDesde, setFDesde] = useState('')
+  const [fHasta, setFHasta] = useState('')
   const [fConf, setFConf] = useState('')
   const [quick, setQuick] = useState('')
   const [masFiltros, setMasFiltros] = useState(false)
@@ -119,6 +123,10 @@ export default function App() {
     if (skip !== 'prov' && fProv && r.proveedor !== fProv) return false
     if (skip !== 'comp' && fComp && r.comprador !== fComp) return false
     if (skip !== 'mes' && fMes && (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7) !== fMes) return false
+    if (fDesde || fHasta) {
+      const f = r.fecha_confirmada || r.fecha_programada_ingreso
+      if (!f || (fDesde && f < fDesde) || (fHasta && f > fHasta)) return false
+    }
     if (skip !== 'conf' && fConf && r.estado_confirmacion !== fConf) return false
     if (quick === 'abierto' && !r.abierto) return false
     if (quick === 'sinconf' && r.estado_confirmacion !== 'Pendiente') return false
@@ -134,16 +142,16 @@ export default function App() {
 
   const proveedores = useMemo(() =>
     [...new Set(rowsOC.filter(r => matchRow(r, 'prov')).map(r => r.proveedor).filter(Boolean))].sort()
-  , [rowsOC, q, fEst, fGes, fComp, fMes, fConf, quick, soloTol])
+  , [rowsOC, q, fEst, fGes, fComp, fMes, fConf, fDesde, fHasta, quick, soloTol])
 
   const compradores = useMemo(() =>
     [...new Set(rowsOC.filter(r => matchRow(r, 'comp')).map(r => r.comprador).filter(Boolean))].sort()
-  , [rowsOC, q, fEst, fGes, fProv, fMes, fConf, quick, soloTol])
+  , [rowsOC, q, fEst, fGes, fProv, fMes, fConf, fDesde, fHasta, quick, soloTol])
 
   const meses = useMemo(() => {
     const claves = [...new Set(rowsOC.filter(r => matchRow(r, 'mes')).map(r => (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7)).filter(Boolean))].sort()
     return claves.map(k => ({ valor: k, etiqueta: nombreMes(k) }))
-  }, [rowsOC, q, fEst, fGes, fProv, fComp, fConf, quick, soloTol])
+  }, [rowsOC, q, fEst, fGes, fProv, fComp, fConf, fDesde, fHasta, quick, soloTol])
 
   useEffect(() => { if (fProv && !proveedores.includes(fProv)) setFProv('') }, [proveedores, fProv])
   useEffect(() => { if (fComp && !compradores.includes(fComp)) setFComp('') }, [compradores, fComp])
@@ -180,7 +188,7 @@ export default function App() {
       return (x > y ? 1 : x < y ? -1 : 0) * sortD
     })
     return out
-  }, [rowsOC, q, fEst, fGes, fProv, fComp, fMes, fConf, quick, soloTol, sortK, sortD])
+  }, [rowsOC, q, fEst, fGes, fProv, fComp, fMes, fConf, fDesde, fHasta, quick, soloTol, sortK, sortD])
 
   const selected = filtradas.find(r => r.id_entrega === selectedId) || rowsOC.find(r => r.id_entrega === selectedId)
 
@@ -190,7 +198,7 @@ export default function App() {
   }
 
   function limpiar() {
-    setQInput(''); setQ(''); setFEst(''); setFGes(''); setFProv(''); setFComp(''); setFMes(''); setFConf('')
+    setQInput(''); setQ(''); setFEst(''); setFGes(''); setFProv(''); setFComp(''); setFMes(''); setFConf(''); setFDesde(''); setFHasta('')
     setQuick(''); setSoloTol(false)
   }
 
@@ -256,7 +264,7 @@ export default function App() {
     <div className="wrap">
       <header className="enc">
         <div className="enc-izq">
-          <div className="marca">Roxfarma</div>
+          <img className="marca-img" src="/logo-roxfarma.png" alt="Roxfarma" />
           <div>
             <h1>Seguimiento de materiales de empaque</h1>
             <div className="sub">Órdenes de compra programadas y estado real de ingreso a almacén</div>
@@ -335,7 +343,7 @@ export default function App() {
                 {compradores.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
               {(() => {
-                const activos = [fGes, fConf, soloTol].filter(Boolean).length
+                const activos = [fGes, fConf, soloTol, fDesde || fHasta].filter(Boolean).length
                 return (
                   <button className={`btn btn-filtro ${masFiltros || activos ? 'on' : ''}`} onClick={() => setMasFiltros(v => !v)}>
                     <Icono nombre="filtro" tam={15} /> Más filtros{activos ? ` (${activos})` : ''}
@@ -355,6 +363,13 @@ export default function App() {
                   <option value="Confirmada">Confirmada</option>
                 </select>
                 <button className={`btn ${soloTol ? 'act' : ''}`} onClick={() => setSoloTol(v => !v)}>Solo tolerancia</button>
+                <div className="oc-rango">
+                  <span>Fecha de entrega</span>
+                  <label>Desde <input type="date" value={fDesde} onChange={e => { setFDesde(e.target.value); if (!fHasta || e.target.value > fHasta) setFHasta(e.target.value) }} /></label>
+                  <label>Hasta <input type="date" value={fHasta} min={fDesde || undefined} onChange={e => setFHasta(e.target.value)} /></label>
+                  <button className="btn" onClick={() => { const h = new Date(); const iso = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; setFDesde(iso); setFHasta(iso) }}>Hoy</button>
+                  {(fDesde || fHasta) && <button className="btn-link" onClick={() => { setFDesde(''); setFHasta('') }}>quitar</button>}
+                </div>
               </div>
             )}
             <div className="oc-conteo">

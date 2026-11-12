@@ -516,3 +516,9 @@ tbody tr.sel{background:#f2f5f9}
 .arch-btn{margin-top:12px}
 .arch-hist{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
 .arch-hist h3{font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.marca-img{height:46px;width:auto;display:block;padding-right:18px;border-right:1px solid var(--line)}
+@media (max-width:700px){.marca-img{height:34px}}
+.oc-rango{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2)}
+.oc-rango>span{font-weight:600;color:var(--ink3);font-size:11.5px;text-transform:uppercase;letter-spacing:.3px}
+.oc-rango label{display:flex;align-items:center;gap:6px}
+.oc-rango input[type=date]{padding:7px 9px}
