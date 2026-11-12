@@ -544,3 +544,26 @@ tbody tr.sel{background:#f2f5f9}
 .cat-sel button:hover{color:var(--ink)}
 .cat-sel button.act{background:var(--card);color:var(--acc);font-weight:600;box-shadow:0 1px 3px rgba(0,22,123,.12)}
 @media (max-width:900px){.cat-sel{margin-left:0}}
+.rf{position:relative;display:inline-flex;align-items:center;gap:8px}
+.rf-btn{display:inline-flex;align-items:center;gap:7px}
+.rf-btn.on{background:var(--accbg);border-color:#c9d7ef;color:var(--acc);font-weight:600}
+.rf-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:50;display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,22,123,.14);overflow:hidden}
+.rf-atajos{display:flex;flex-direction:column;gap:2px;padding:10px;border-right:1px solid var(--line);background:var(--bg);min-width:130px}
+.rf-atajos button{font:inherit;font-size:12.5px;text-align:left;background:none;border:none;border-radius:7px;padding:7px 10px;cursor:pointer;color:var(--ink2)}
+.rf-atajos button:hover{background:var(--card);color:var(--acc)}
+.rf-cal{padding:12px 14px;width:280px}
+.rf-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rf-cab b{font-size:13.5px;font-weight:600}
+.rf-cab button{font:inherit;font-size:18px;line-height:1;background:none;border:1px solid var(--line);border-radius:7px;width:30px;height:28px;cursor:pointer;color:var(--ink2)}
+.rf-cab button:hover{color:var(--acc);border-color:var(--acc)}
+.rf-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0}
+.rf-dn{font-size:10.5px;font-weight:600;color:var(--ink3);text-align:center;padding:4px 0}
+.rf-d{font:inherit;font-size:12.5px;height:32px;background:none;border:none;cursor:pointer;color:var(--ink);border-radius:0}
+.rf-d.fuera{color:var(--ink3);opacity:.55}
+.rf-d.hoy{font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.rf-d.en{background:var(--accbg);color:var(--acc)}
+.rf-d.borde{background:var(--acc);color:#fff;border-radius:8px;font-weight:600}
+.rf-d:hover:not(.borde){background:var(--bg);border-radius:8px}
+.rf-ayuda{font-size:11.5px;color:var(--ink3);margin-top:8px;line-height:1.4}
+@media (max-width:600px){.rf-pop{flex-direction:column}.rf-atajos{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}}
+.rf-atajos button{white-space:nowrap}

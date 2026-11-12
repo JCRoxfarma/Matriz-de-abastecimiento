@@ -8,6 +8,7 @@ import EnviarRecordatorios from './EnviarRecordatorios'
 import ComunicarAlmacen from './ComunicarAlmacen'
 import Archivos from './Archivos'
 import Icono from './Icono'
+import RangoFechas from './RangoFechas'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
 import Indicadores from './Indicadores'
@@ -376,10 +377,7 @@ export default function App() {
                 <button className={`btn ${soloTol ? 'act' : ''}`} onClick={() => setSoloTol(v => !v)}>Solo tolerancia</button>
                 <div className="oc-rango">
                   <span>Fecha de entrega</span>
-                  <label>Desde <input type="date" value={fDesde} onChange={e => { setFDesde(e.target.value); if (!fHasta || e.target.value > fHasta) setFHasta(e.target.value) }} /></label>
-                  <label>Hasta <input type="date" value={fHasta} min={fDesde || undefined} onChange={e => setFHasta(e.target.value)} /></label>
-                  <button className="btn" onClick={() => { const h = new Date(); const iso = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; setFDesde(iso); setFHasta(iso) }}>Hoy</button>
-                  {(fDesde || fHasta) && <button className="btn-link" onClick={() => { setFDesde(''); setFHasta('') }}>quitar</button>}
+                  <RangoFechas desde={fDesde} hasta={fHasta} onChange={(a, b) => { setFDesde(a); setFHasta(b) }} />
                 </div>
               </div>
             )}
