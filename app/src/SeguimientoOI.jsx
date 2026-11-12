@@ -87,6 +87,7 @@ export default function SeguimientoOI() {
   const [q, setQ] = useState('')
   const [fGrupo, setFGrupo] = useState('')
   const [fEtapa, setFEtapa] = useState('')
+  const [fEstado, setFEstado] = useState('')
   const [fMes, setFMes] = useState('')
   const [fProv, setFProv] = useState('')
   const [fComp, setFComp] = useState('')
@@ -146,6 +147,10 @@ export default function SeguimientoOI() {
       }
       if (fGrupo && !GRUPOS[fGrupo](r)) return false
       if (fEtapa && Number(fEtapa) !== r.etapa) return false
+      // Completo = la OI ya ingreso toda a almacen (etapa Completado);
+      // Pendiente = todavia en alguna etapa del proceso.
+      if (fEstado === 'Completo' && r.etapa !== 9) return false
+      if (fEstado === 'Pendiente' && r.etapa === 9) return false
       if (fMes && mesDe(r) !== fMes) return false
       if (fProv && r.proveedor !== fProv) return false
       if (fComp && r.comprador !== fComp) return false
@@ -158,7 +163,7 @@ export default function SeguimientoOI() {
       return (x > y ? 1 : x < y ? -1 : 0) * sortD
     })
     return out
-  }, [rows, q, fGrupo, fEtapa, fMes, fProv, fComp, sortK, sortD])
+  }, [rows, q, fGrupo, fEtapa, fEstado, fMes, fProv, fComp, sortK, sortD])
 
   const selected = rows.find(r => r.id_entrega === selectedId)
 
@@ -268,6 +273,11 @@ export default function SeguimientoOI() {
 
             <div className="oc-filtros">
               <input type="text" placeholder="Buscar por OI, SKU, material o proveedor" value={qInput} onChange={e => setQInput(e.target.value)} />
+              <select value={fEstado} onChange={e => setFEstado(e.target.value)}>
+                <option value="">Todos los estados</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Completo">Completo</option>
+              </select>
               <select value={fEtapa} onChange={e => { setFEtapa(e.target.value); setFGrupo('') }}>
                 <option value="">Todas las etapas</option>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(e => <option key={e} value={e}>{ETAPA_SHORT[e]}</option>)}
@@ -287,7 +297,7 @@ export default function SeguimientoOI() {
             </div>
             <div className="oc-conteo">
               <span>{fmt(filtradas.length)} líneas OI</span>
-              <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFMes(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
+              <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFEstado(''); setFMes(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
             </div>
 
           <div className="tw">
