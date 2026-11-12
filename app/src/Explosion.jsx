@@ -8,6 +8,7 @@ import ExplosionButton from './ExplosionButton'
 import StockButton from './StockButton'
 import LeadTimeConfig from './LeadTimeConfig'
 import { obtenerLeadTimes, TIPO_LABEL } from './lib/leadTime'
+import Icono from './Icono'
 
 const fechaHora = s => s ? new Date(s).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 const mesLabel = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) : ''
@@ -38,6 +39,10 @@ const ordenUrgencia = (a, b) => {
   if (l !== 0) return l
   return (a.fechaRequeridaIngreso || '9999').localeCompare(b.fechaRequeridaIngreso || '9999')
 }
+
+// Estados que exigen accion ya (tarjeta "Compras urgentes" y la opcion
+// "Urgentes" del filtro de estado).
+const URGENTES = ['quiebre', 'no_llega', 'oc_tarde', 'pedir_ya']
 
 const PESTANAS = [
   { id: 'resumen', label: 'Resumen' },
@@ -154,7 +159,7 @@ export default function Explosion({ esEditor }) {
 
   const filasCompras = useMemo(() => base.filter(f => {
     if (fMesFab && f.mesFabricacionProximo !== fMesFab) return false
-    if (fEstado && f.estadoAbastecimiento !== fEstado) return false
+    if (fEstado === 'urgente' ? !URGENTES.includes(f.estadoAbastecimiento) : fEstado && f.estadoAbastecimiento !== fEstado) return false
     if (soloFaltante && f.estadoAbastecimiento === 'cubierto') return false
     if (soloTardios && !f.pedidoTardio) return false
     return true
@@ -186,7 +191,7 @@ export default function Explosion({ esEditor }) {
       .sort((a, b) => b.variacionAbs - a.variacionAbs).slice(0, 8)
     const bajas = filas.filter(f => f.categoria === 'disminucion' || f.categoria === 'desaparecido')
       .sort((a, b) => a.variacionAbs - b.variacionAbs).slice(0, 8)
-    const urgentes = filas.filter(f => ['quiebre', 'no_llega', 'oc_tarde', 'pedir_ya'].includes(f.estadoAbastecimiento))
+    const urgentes = filas.filter(f => URGENTES.includes(f.estadoAbastecimiento))
       .sort(ordenUrgencia).slice(0, 12)
     return { porVariacion, bajas, urgentes }
   }, [filas])
@@ -244,22 +249,23 @@ export default function Explosion({ esEditor }) {
 
   return (
     <div>
-      <div className="bar">
-        <ExplosionButton rol="actual" label="Cargar explosión nueva" onDone={cargar} />
-        <ExplosionButton rol="anterior" label="Corregir explosión anterior" className="btn-subtle" onDone={cargar} />
-        <StockButton onDone={cargar} />
-        {snaps.actual && (
-          <span className="pct">
-            Último snapshot: {snaps.actual.archivo} ({fechaHora(snaps.actual.creado_en)})
-            {snaps.anterior && <> — comparado contra {snaps.anterior.archivo} ({fechaHora(snaps.anterior.creado_en)})</>}
-          </span>
+      <section className="oc-card expl-head">
+        <div className="oc-card-h">
+          <h2><Icono nombre="capas" tam={22} /> Explosión de materiales</h2>
+          <div className="oc-acc">
+            <ExplosionButton rol="anterior" label="Corregir explosión anterior" className="btn-subtle" onDone={cargar} />
+            <StockButton onDone={cargar} />
+            <ExplosionButton rol="actual" label="Cargar explosión nueva" className="btn act" onDone={cargar} />
+          </div>
+        </div>
+        {(snaps.actual || stockInfo) && (
+          <div className="expl-fuentes">
+            {snaps.actual && <div><span>Explosión actual</span><b>{snaps.actual.archivo}</b><em>{fechaHora(snaps.actual.creado_en)}</em></div>}
+            {snaps.anterior && <div><span>Comparada contra</span><b>{snaps.anterior.archivo}</b><em>{fechaHora(snaps.anterior.creado_en)}</em></div>}
+            {stockInfo && <div><span>Stock del sistema</span><b className="ok">{fdate(stockInfo.fecha)}</b></div>}
+          </div>
         )}
-        {stockInfo && (
-          <span className="pct" style={{ color: 'var(--grn)', fontWeight: 500 }}>
-            Stock del sistema: {fdate(stockInfo.fecha)}
-          </span>
-        )}
-      </div>
+      </section>
 
       {err && <div className="empty">No se pudo cargar la comparación: {err}</div>}
       {loading && <div className="empty">Cargando...</div>}
@@ -284,24 +290,45 @@ export default function Explosion({ esEditor }) {
 
           {pestana === 'resumen' && (
             <>
-              <div className="expl-sec">Cambios de consumo</div>
-              <div className="kpis">
-                <div className="kpi g" onClick={() => irA('consumos', { cambio: 'nuevo' })}><div className="lb">Materiales nuevos</div><div className="vl">{kpis.nuevo}</div></div>
-                <div className="kpi r" onClick={() => irA('consumos', { cambio: 'aumento' })}><div className="lb">Aumentaron consumo</div><div className="vl">{kpis.aumento}</div></div>
-                <div className="kpi a" onClick={() => irA('consumos', { cambio: 'disminucion' })}><div className="lb">Disminuyeron consumo</div><div className="vl">{kpis.disminucion}</div></div>
-                <div className="kpi" onClick={() => irA('consumos', { cambio: 'desaparecido' })}><div className="lb">Ya no aparecen</div><div className="vl">{kpis.desaparecido}</div></div>
+              <div className="kpis2">
+                <div className="kpi2 azul" title="Clic para ver las sugerencias de compra" onClick={() => irA('compras')}>
+                  <Icono nombre="carrito" tam={24} />
+                  <div className="lb">Requieren compra</div>
+                  <div className="vl">{fmt(kpis.requierenCompra)}</div>
+                  <div className="ft">
+                    <button onClick={e => { e.stopPropagation(); irA('compras', { estado: 'pedir_ya' }) }}>{kpis.pedirYa} esta semana</button>
+                    {' · '}<button onClick={e => { e.stopPropagation(); irA('compras', { estado: 'pedir_pronto' }) }}>{kpis.pedirPronto} en 30 días</button>
+                  </div>
+                </div>
+                <div className="kpi2 rojo" title="Clic para ver todas las urgentes" onClick={() => irA('compras', { estado: 'urgente' })}>
+                  <Icono nombre="alerta" tam={24} />
+                  <div className="lb">Compras urgentes</div>
+                  <div className="vl">{fmt(kpis.quiebre + kpis.noLlega + kpis.ocTarde + kpis.pedirYa)}</div>
+                  <div className="ft">
+                    <button onClick={e => { e.stopPropagation(); irA('compras', { estado: 'quiebre' }) }}>{kpis.quiebre} ruptura</button>
+                    {' · '}<button onClick={e => { e.stopPropagation(); irA('compras', { estado: 'no_llega' }) }}>{kpis.noLlega} no llegan</button>
+                    {' · '}<button onClick={e => { e.stopPropagation(); irA('compras', { estado: 'oc_tarde' }) }}>{kpis.ocTarde} OC tarde</button>
+                  </div>
+                </div>
+                <div className="kpi2 ambar" title="Clic para ver los pedidos tardíos" onClick={() => irA('compras', { tardios: true })}>
+                  <Icono nombre="reloj" tam={24} />
+                  <div className="lb">Pedidos tardíos</div>
+                  <div className="vl">{fmt(kpis.tardios)}</div>
+                  <div className="ft">planeamiento pidió dentro del lead time</div>
+                </div>
+                <div className="kpi2 azul" title="Clic para comparar consumos" onClick={() => irA('consumos')}>
+                  <Icono nombre="grafico" tam={24} />
+                  <div className="lb">Cambios de consumo</div>
+                  <div className="vl">{fmt(kpis.nuevo + kpis.aumento + kpis.disminucion + kpis.desaparecido)}</div>
+                  <div className="ft">
+                    <button onClick={e => { e.stopPropagation(); irA('consumos', { cambio: 'nuevo' }) }}>{kpis.nuevo} nuevos</button>
+                    {' · '}<button onClick={e => { e.stopPropagation(); irA('consumos', { cambio: 'aumento' }) }}>{kpis.aumento} suben</button>
+                    {' · '}<button onClick={e => { e.stopPropagation(); irA('consumos', { cambio: 'disminucion' }) }}>{kpis.disminucion} bajan</button>
+                    {kpis.desaparecido > 0 && <>{' · '}<button onClick={e => { e.stopPropagation(); irA('consumos', { cambio: 'desaparecido' }) }}>{kpis.desaparecido} salen</button></>}
+                  </div>
+                </div>
               </div>
 
-              <div className="expl-sec">Abastecimiento</div>
-              <div className="kpis">
-                <div className="kpi r" onClick={() => irA('compras')}><div className="lb">Requieren compra</div><div className="vl">{kpis.requierenCompra}</div></div>
-                <div className="kpi r" onClick={() => irA('compras', { estado: 'quiebre' })}><div className="lb">Ruptura de stock</div><div className="vl">{kpis.quiebre}</div></div>
-                <div className="kpi r" onClick={() => irA('compras', { estado: 'no_llega' })}><div className="lb">No llega a tiempo</div><div className="vl">{kpis.noLlega}</div></div>
-                <div className="kpi r" onClick={() => irA('compras', { estado: 'oc_tarde' })}><div className="lb">OC llega tarde</div><div className="vl">{kpis.ocTarde}</div></div>
-                <div className="kpi r" onClick={() => irA('compras', { estado: 'pedir_ya' })}><div className="lb">Pedir esta semana</div><div className="vl">{kpis.pedirYa}</div></div>
-                <div className="kpi a" onClick={() => irA('compras', { estado: 'pedir_pronto' })}><div className="lb">Pedir en 30 días</div><div className="vl">{kpis.pedirPronto}</div></div>
-                <div className="kpi a" onClick={() => irA('compras', { tardios: true })}><div className="lb">Pedidos tardíos (planeamiento)</div><div className="vl">{kpis.tardios}</div></div>
-              </div>
               {(!leadTimes || kpis.sinLeadTime > 0) && (
                 <div className="lt-aviso" onClick={() => setPestana('leadtime')}>
                   {!leadTimes
@@ -386,15 +413,21 @@ export default function Explosion({ esEditor }) {
 
           {pestana === 'consumos' && (
             <>
-              <div className="bar">
-                {filtrosComunes}
-                <select value={fCambio} onChange={e => setFCambio(e.target.value)}>
-                  <option value="">Todos los cambios</option>
-                  {Object.keys(CAT_LABEL).map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
-                </select>
-                <button className={`btn ${soloCambios ? 'act' : ''}`} onClick={() => setSoloCambios(v => !v)}>Solo con cambios</button>
-                <button className="btn" onClick={limpiar}>Limpiar</button>
-                <span className="count">{fmt(filasConsumos.length)} materiales</span>
+              <div className="oc-card expl-filtros">
+                <div className="oc-filtros">
+                  {filtrosComunes}
+                  <select value={fCambio} onChange={e => setFCambio(e.target.value)}>
+                    <option value="">Todos los cambios</option>
+                    {Object.keys(CAT_LABEL).map(c => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}
+                  </select>
+                </div>
+                <div className="oc-conteo">
+                  <span className="expl-conteo">
+                    {fmt(filasConsumos.length)} materiales
+                    <button className={`btn ${soloCambios ? 'act' : ''}`} onClick={() => setSoloCambios(v => !v)}>Solo con cambios</button>
+                  </span>
+                  <button className="btn-link" onClick={limpiar}>Limpiar filtros</button>
+                </div>
               </div>
 
               <div className="pct" style={{ margin: '0 2px 10px' }}>
@@ -467,7 +500,8 @@ export default function Explosion({ esEditor }) {
 
           {pestana === 'compras' && (
             <>
-              <div className="bar">
+              <div className="oc-card expl-filtros">
+                <div className="oc-filtros">
                 {filtrosComunes}
                 <select value={fMesFab} onChange={e => setFMesFab(e.target.value)}>
                   <option value="">Todos los meses de fabricación</option>
@@ -475,12 +509,18 @@ export default function Explosion({ esEditor }) {
                 </select>
                 <select value={fEstado} onChange={e => setFEstado(e.target.value)}>
                   <option value="">Todos los estados</option>
+                  <option value="urgente">Urgentes</option>
                   {Object.keys(ESTADO_LABEL).map(e => <option key={e} value={e}>{ESTADO_LABEL[e]}</option>)}
                 </select>
-                <button className={`btn ${soloFaltante ? 'act' : ''}`} onClick={() => setSoloFaltante(v => !v)}>Ocultar cubiertos</button>
-                <button className={`btn ${soloTardios ? 'act' : ''}`} onClick={() => setSoloTardios(v => !v)}>Solo pedidos tardíos</button>
-                <button className="btn" onClick={limpiar}>Limpiar</button>
-                <span className="count">{fmt(filasCompras.length)} materiales</span>
+                </div>
+                <div className="oc-conteo">
+                  <span className="expl-conteo">
+                    {fmt(filasCompras.length)} materiales
+                    <button className={`btn ${soloFaltante ? 'act' : ''}`} onClick={() => setSoloFaltante(v => !v)}>Ocultar cubiertos</button>
+                    <button className={`btn ${soloTardios ? 'act' : ''}`} onClick={() => setSoloTardios(v => !v)}>Solo pedidos tardíos</button>
+                  </span>
+                  <button className="btn-link" onClick={limpiar}>Limpiar filtros</button>
+                </div>
               </div>
 
               <div className="tw">
