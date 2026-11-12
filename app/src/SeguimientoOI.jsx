@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fmt, fdate, enrich } from './lib/derive'
+import { fmt, fdate, enrich, nombreMes } from './lib/derive'
 import { cargarOI, ETAPAS, etapaLabel, calcularEtapa } from './lib/seguimientoOI'
 import PanelOI from './PanelOI'
 import EnviarRecordatorios from './EnviarRecordatorios'
@@ -87,6 +87,7 @@ export default function SeguimientoOI() {
   const [q, setQ] = useState('')
   const [fGrupo, setFGrupo] = useState('')
   const [fEtapa, setFEtapa] = useState('')
+  const [fMes, setFMes] = useState('')
   const [fProv, setFProv] = useState('')
   const [fComp, setFComp] = useState('')
   const [sortK, setSortK] = useState('etapa')
@@ -119,6 +120,11 @@ export default function SeguimientoOI() {
   const proveedores = useMemo(() => [...new Set(rows.map(r => r.proveedor).filter(Boolean))].sort(), [rows])
   const compradores = useMemo(() => [...new Set(rows.map(r => r.comprador).filter(Boolean))].sort(), [rows])
 
+  // Mes de la fecha programada de ingreso (o la confirmada, si la hay), igual
+  // que el filtro de mes de Seguimiento OC.
+  const mesDe = r => (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7)
+  const meses = useMemo(() => [...new Set(rows.map(mesDe).filter(Boolean))].sort(), [rows])
+
   const kpis = useMemo(() => {
     const n = g => rows.filter(GRUPOS[g]).length
     const cuenta = e => rows.filter(r => r.etapa === e).length
@@ -140,6 +146,7 @@ export default function SeguimientoOI() {
       }
       if (fGrupo && !GRUPOS[fGrupo](r)) return false
       if (fEtapa && Number(fEtapa) !== r.etapa) return false
+      if (fMes && mesDe(r) !== fMes) return false
       if (fProv && r.proveedor !== fProv) return false
       if (fComp && r.comprador !== fComp) return false
       return true
@@ -151,7 +158,7 @@ export default function SeguimientoOI() {
       return (x > y ? 1 : x < y ? -1 : 0) * sortD
     })
     return out
-  }, [rows, q, fGrupo, fEtapa, fProv, fComp, sortK, sortD])
+  }, [rows, q, fGrupo, fEtapa, fMes, fProv, fComp, sortK, sortD])
 
   const selected = rows.find(r => r.id_entrega === selectedId)
 
@@ -265,6 +272,10 @@ export default function SeguimientoOI() {
                 <option value="">Todas las etapas</option>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(e => <option key={e} value={e}>{ETAPA_SHORT[e]}</option>)}
               </select>
+              <select value={fMes} onChange={e => setFMes(e.target.value)} title="Mes de la fecha programada de ingreso">
+                <option value="">Todos los meses</option>
+                {meses.map(m => <option key={m} value={m}>{nombreMes(m)}</option>)}
+              </select>
               <select value={fProv} onChange={e => setFProv(e.target.value)}>
                 <option value="">Todos los proveedores</option>
                 {proveedores.map(v => <option key={v} value={v}>{v}</option>)}
@@ -276,7 +287,7 @@ export default function SeguimientoOI() {
             </div>
             <div className="oc-conteo">
               <span>{fmt(filtradas.length)} líneas OI</span>
-              <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
+              <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFMes(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
             </div>
 
           <div className="tw">
