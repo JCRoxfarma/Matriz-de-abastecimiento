@@ -130,10 +130,16 @@ export function enrich(r) {
   // pendiente (o alguien la cerro a mano), se ve Cerrado; si se paso la
   // fecha y sigue con saldo, Atrasado; si no, se respeta lo que haya
   // dejado la gente (Reprogramado, etc.) o "En seguimiento" por defecto.
+  // "Atrasado" lo decide siempre la fecha, nunca lo guardado: si una
+  // entrega se guardo como Atrasado y despues el proveedor confirmo o se
+  // reprogramo a una fecha que aun no llega, ya no esta atrasada (pasa a
+  // Reprogramado si se movio la fecha, o En seguimiento).
+  const reprogramada = Array.isArray(r.historial) && r.historial.length > 0
+  const guardado = r.estado_gestion === 'Atrasado' ? (reprogramada ? 'Reprogramado' : 'En seguimiento') : r.estado_gestion
   const estadoGestion = CERRADAS.includes(r.estado_gestion) ? r.estado_gestion
     : !abierto ? 'Cerrado'
     : (dd != null && dd < 0) ? 'Atrasado'
-    : (r.estado_gestion || 'En seguimiento')
+    : (guardado || 'En seguimiento')
   // Igual que Gestion: si el dato guardado quedo viejo (por ejemplo un
   // "Parcial" de antes de fusionar ese estado con Pendiente), no se
   // confia en el valor de la base, se calcula solo. "Pendiente" quiere
