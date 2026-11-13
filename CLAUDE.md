@@ -124,7 +124,9 @@ de importaciones) (`app/src/lib/importer.js`), y:
   E01 antes que E02) se llena primero, porque así entregan los proveedores.
 - **Entregas parciales que cambian de cantidad:** en el panel de la OC, el
   "Ajuste excepcional de cantidad" ofrece compensar la diferencia en la
-  última entrega de la misma OC + SKU (el total de la OC no cambia). Al
+  última entrega de la misma OC + SKU (el total de la OC no cambia). De
+  la última solo se descuenta lo que aún no llegó; si no alcanza (o es la
+  propia última entrega), el resto aumenta el total de la OC. Al
   guardar un cambio de cantidad se vuelve a repartir lo ingresado de esa
   OC + SKU al instante (`recalcularEntregasDe` en `importer.js`, mismo
   cálculo que al importar).

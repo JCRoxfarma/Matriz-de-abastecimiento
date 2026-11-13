@@ -25,7 +25,14 @@ export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, 
   const esUltima = !ultima || (ultima.orden_entrega || 0) < (row.orden_entrega || 0)
   const [compensar, setCompensar] = useState(true)
   const delta = (Number(ajuste) || 0) - (row.ajuste_cantidad || 0)
-  const nuevaUltima = ultima ? (ultima.progEfectivo ?? ultima.cant_programada) - delta : null
+  // Si esta entrega aumenta, de la ultima solo se puede descontar lo que
+  // aun no llego; si no alcanza, el resto aumenta el total de la OC (por
+  // ejemplo una cantidad pequena de mas que el proveedor si va a mandar).
+  const progUltima = ultima ? (ultima.progEfectivo ?? ultima.cant_programada ?? 0) : 0
+  const disponibleUltima = ultima ? Math.max(0, progUltima - (ultima.cant_ingresada || 0)) : 0
+  const descontar = delta > 0 ? Math.min(delta, disponibleUltima) : delta
+  const aumentaTotal = delta > 0 ? delta - descontar : 0
+  const nuevaUltima = ultima ? progUltima - descontar : null
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -60,11 +67,10 @@ export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, 
     }
     if (CERRADAS.includes(patch.estado_gestion)) patch.reabierta = false
     const conCompensacion = delta !== 0 && compensar && ultima && !esUltima
-    if (conCompensacion && nuevaUltima < 0) { setSaving(false); alert(`La última entrega (${ultima.n_entrega}) no alcanza para descontar ${fmt(delta)}.`); return }
     const { error } = await supabase.from('programacion_oc').update(patch).eq('id_entrega', row.id_entrega)
     if (error) { setSaving(false); alert('No se pudo guardar: ' + error.message); return }
-    if (conCompensacion) {
-      const pU = { ajuste_cantidad: (ultima.ajuste_cantidad || 0) - delta, motivo_ajuste: `Compensa ${delta > 0 ? '+' : ''}${fmt(delta)} de la ${row.n_entrega}` }
+    if (conCompensacion && descontar !== 0) {
+      const pU = { ajuste_cantidad: (ultima.ajuste_cantidad || 0) - descontar, motivo_ajuste: `Compensa ${descontar > 0 ? '+' : ''}${fmt(descontar)} de la ${row.n_entrega}` }
       const { error: e2 } = await supabase.from('programacion_oc').update(pU).eq('id_entrega', ultima.id_entrega)
       if (e2) { setSaving(false); alert('Se guardó esta entrega, pero no se pudo ajustar la última: ' + e2.message); return }
       onSavedOtra?.(ultima.id_entrega, pU)
@@ -233,11 +239,17 @@ export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, 
                   {(Number(ajuste) || 0) !== 0 && (
                     <input type="text" style={{ marginTop: 6 }} placeholder="Motivo del ajuste (ej. ruptura de stock)" value={motAjuste} onChange={e => setMotAjuste(e.target.value)} />
                   )}
-                  {delta !== 0 && ultima && !esUltima && (
+                  {delta !== 0 && ultima && !esUltima && (disponibleUltima > 0 || delta < 0) && (
                     <label className="compensar">
                       <input type="checkbox" checked={compensar} onChange={e => setCompensar(e.target.checked)} />
-                      <span>{delta > 0 ? 'Descontar' : 'Sumar'} {fmt(Math.abs(delta))} en la última entrega ({ultima.n_entrega}): {fmt(ultima.progEfectivo ?? ultima.cant_programada)} → <b>{fmt(nuevaUltima)}</b>. El total de la OC no cambia.</span>
+                      <span>
+                        {descontar > 0 ? 'Descontar' : 'Sumar'} {fmt(Math.abs(descontar))} en la última entrega ({ultima.n_entrega}): {fmt(progUltima)} → <b>{fmt(nuevaUltima)}</b>.
+                        {aumentaTotal > 0 ? <> La última solo tiene {fmt(disponibleUltima)} por llegar: los otros <b>{fmt(aumentaTotal)}</b> aumentan el total de la OC.</> : ' El total de la OC no cambia.'}
+                      </span>
                     </label>
+                  )}
+                  {delta > 0 && ((ultima && !esUltima && disponibleUltima === 0) || esUltima) && (
+                    <div className="compensar"><span>{esUltima && hermanas.length > 1 ? 'Es la última entrega: ' : ''}{!esUltima ? `La última entrega (${ultima.n_entrega}) ya no tiene saldo por llegar: ` : ''}el total de la OC aumenta en <b>{fmt(delta)}</b>.</span></div>
                   )}
                   <div className="hint">Positivo para aumentar, negativo para reducir (ej. esta entrega ahora es mayor y la diferencia sale de la última). El campo original del Excel no se modifica.</div>
                 </div>
