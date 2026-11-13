@@ -59,7 +59,18 @@ export default function App() {
   })
   const [mostrarEnviar, setMostrarEnviar] = useState(!!avisoOutlook)
   const [mostrarConfirmaciones, setMostrarConfirmaciones] = useState(false)
-  const [vista, setVista] = useState('oc')
+  // La pestana abierta se guarda en la direccion (#oi, #indicadores...), asi
+  // al actualizar la pagina (F5) se queda en la misma pestana, y el boton
+  // Atras del navegador vuelve a la pestana anterior.
+  const VISTAS = ['oc', 'oi', 'explosion', 'indicadores', 'archivos']
+  const vistaDeUrl = () => { const h = window.location.hash.slice(1); return VISTAS.includes(h) ? h : 'oc' }
+  const [vista, setVistaSt] = useState(vistaDeUrl)
+  const setVista = v => { setVistaSt(v); if (window.location.hash.slice(1) !== v) window.location.hash = v }
+  useEffect(() => {
+    const alCambiar = () => setVistaSt(vistaDeUrl())
+    window.addEventListener('hashchange', alCambiar)
+    return () => window.removeEventListener('hashchange', alCambiar)
+  }, [])
 
   const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
