@@ -57,10 +57,6 @@ export default function VerConfirmaciones({ rows, onClose }) {
     }
   }
 
-  function abrirPortal(nombre) {
-    window.open(linkPortal(nombre), '_blank')
-  }
-
   return (
     <div className="mdl-ov" onClick={onClose}>
       <div className="mdl mdl-wide" onClick={e => e.stopPropagation()}>
@@ -133,9 +129,11 @@ export default function VerConfirmaciones({ rows, onClose }) {
                       <button className="btn-sm" onClick={e => { e.stopPropagation(); copiarLink(prov.nombre) }}>
                         {copiado === prov.nombre ? 'Copiado' : 'Copiar link'}
                       </button>
-                      <button className="btn-sm" onClick={e => { e.stopPropagation(); abrirPortal(prov.nombre) }}>
+                      {/* Enlace normal (no window.open): Chrome a veces bloquea en
+                          silencio las ventanas abiertas por codigo como pop-up. */}
+                      <a className="btn-sm" href={linkPortal(prov.nombre)} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
                         Ver portal
-                      </button>
+                      </a>
                     </div>
                   </div>
                   {abierto && (

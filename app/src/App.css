@@ -589,3 +589,4 @@ tr.fila-rech:hover td{background:#fbdcd8}
 .rech-sec.desm h3{color:var(--amb)}
 .rech-nc.on-amb{background:var(--ambbg);border-color:#efd9b5;color:var(--amb);font-weight:600}
 .rech-nc.on-amb input{accent-color:var(--amb)}
+a.btn-sm{text-decoration:none;display:inline-flex;align-items:center}
