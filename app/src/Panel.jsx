@@ -3,6 +3,7 @@ import { supabase } from './lib/supabaseClient'
 import { fmt, fmtM, fdate, days, SEM, CERRADAS, gestOpts, separarMotivo, unirMotivo } from './lib/derive'
 import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
+import RechazoCalidad from './RechazoCalidad'
 
 export default function Panel({ row, esEditor, onClose, onSaved }) {
   const opcionesGestion = gestOpts(row)
@@ -101,6 +102,8 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
             <div className="kv"><span>Semana de ingreso</span><b>SEM {row.semana_ingreso || ''}</b></div>
             <div className="kv"><span>Almacen destino</span><b>{row.almacen_destino || 'sin definir'}</b></div>
           </div>
+
+          <RechazoCalidad row={row} esEditor={esEditor} onGuardado={p => onSaved(p)} />
 
           <LeadTimeEntrega row={row} etiqueta="OC" />
 

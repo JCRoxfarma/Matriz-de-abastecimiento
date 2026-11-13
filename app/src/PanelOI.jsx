@@ -3,6 +3,7 @@ import { supabase } from './lib/supabaseClient'
 import { fmt, fdate, fmtM, separarMotivo, unirMotivo } from './lib/derive'
 import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
+import RechazoCalidad from './RechazoCalidad'
 import { ETAPAS, etapasVisibles, calcularEtapa, contarDocs, guardarSeguimientoOI } from './lib/seguimientoOI'
 
 const INCOTERMS = ['EXW', 'FOB', 'CFR', 'CIF', 'DDP', 'DAP']
@@ -191,6 +192,8 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
             <div className="kv"><span>Precio unitario</span><b>{fmtM(row.precio_unitario, row.moneda)}</b></div>
             <div className="kv"><span>Valor entrega</span><b>{fmtM(row.valor_entrega, row.moneda)}</b></div>
           </div>
+
+          <RechazoCalidad row={row} esEditor={esEditor} onGuardado={p => onSaved({}, p)} />
 
           <LeadTimeEntrega row={row} etiqueta="OI" />
 

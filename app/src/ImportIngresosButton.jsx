@@ -14,7 +14,7 @@ export default function ImportIngresosButton({ onDone }) {
     setStatus('Empezando...')
     try {
       const r = await importarIngresos(file, setStatus)
-      setStatus(`✓ ${file.name} subido con exito — ${r.ingresosNuevos} ingresos nuevos, ${r.entregasActualizadas} entregas revisadas`)
+      setStatus(`✓ ${file.name} subido con exito — ${r.ingresosNuevos} ingresos nuevos, ${r.entregasActualizadas} entregas revisadas${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}`)
       onDone()
     } catch (err) {
       setStatus('Error: ' + err.message)

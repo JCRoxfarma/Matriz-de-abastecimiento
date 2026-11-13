@@ -14,7 +14,7 @@ export default function ImportButton({ onDone }) {
     setStatus('Empezando...')
     try {
       const r = await importarExcel(file, setStatus)
-      setStatus(`✓ ${file.name} subido con exito — ${r.entregas} entregas, ${r.ingresosNuevos} ingresos nuevos`)
+      setStatus(`✓ ${file.name} subido con exito — ${r.entregas} entregas, ${r.ingresosNuevos} ingresos nuevos${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}`)
       onDone()
     } catch (err) {
       setStatus('Error: ' + err.message)

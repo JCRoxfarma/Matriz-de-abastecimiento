@@ -141,6 +141,7 @@ export default function App() {
     if (quick === 'porllegar' && r.sem2 !== 'porllegar') return false
     if (quick === 'repro' && !r.hist.length) return false
     if (quick === 'desviado' && r.sem2 !== 'desviado') return false
+    if (quick === 'rechazo' && !r.rechazoPend) return false
     if (soloTol && !r.tol) return false
     return true
   }
@@ -186,6 +187,8 @@ export default function App() {
     let out = rowsOC.filter(r => matchRow(r))
     const ord = { atrasado: 0, desviado: 1, sinfecha: 2, porllegar: 3, enfecha: 4, tolerancia: 5, cerrado: 6 }
     out.sort((a, b) => {
+      // Las lineas con rechazo de calidad sin reponer van siempre primero.
+      if (a.rechazoPend !== b.rechazoPend) return a.rechazoPend ? -1 : 1
       if (sortK === 'sem2') return (ord[a.sem2] - ord[b.sem2]) * sortD
       let x = a[sortK], y = b[sortK]
       if (x == null) x = ''
@@ -214,7 +217,13 @@ export default function App() {
       case 'origen': return <span className={`tag ${r.origen === 'Importado' ? 't-blu' : 't-gry'}`}>{r.origen || ''}</span>
       case 'sku': return <span className="mono">{r.sku}</span>
       case 'entN': return r.entTot > 1 ? <span className="tag t-blu">{r.entN} de {r.entTot}</span> : <span className="dim">unica</span>
-      case 'descripcion': return <div className="dsc">{r.descripcion || ''}</div>
+      case 'descripcion': return (
+        <div className="dsc">
+          {r.rechazoPend && <span className="tag t-rech" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und${r.fecha_rechazo ? ' el ' + fdate(r.fecha_rechazo) : ''}. Falta la reposición del proveedor.`}>Rechazo de calidad</span>}
+          {r.tuvoRechazo && <span className="tag t-gry" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und; el proveedor ya repuso.`}>Tuvo rechazo</span>}
+          {r.descripcion || ''}
+        </div>
+      )
       case 'proveedor': return <div className="prov">{r.proveedor || ''}</div>
       case 'comprador': return <span className={`nw ${!r.comprador ? 'dim' : ''}`}>{r.comprador || 'Sin asignar'}</span>
       case 'cant_programada': return fmt(r.cant_programada)
@@ -381,6 +390,17 @@ export default function App() {
                 </div>
               </div>
             )}
+            {(() => {
+              const n = rowsOC.filter(r => r.rechazoPend).length
+              if (!n) return null
+              return (
+                <div className={`aviso-rech ${quick === 'rechazo' ? 'on' : ''}`}>
+                  <Icono nombre="alerta" tam={18} />
+                  <span><b>{n} {n === 1 ? 'entrega tiene' : 'entregas tienen'} rechazo de calidad</b> pendiente de reposición del proveedor.</span>
+                  <button className="btn" onClick={() => setQuick(q => q === 'rechazo' ? '' : 'rechazo')}>{quick === 'rechazo' ? 'Ver todas' : 'Ver solo estas'}</button>
+                </div>
+              )
+            })()}
             <div className="oc-conteo">
               <span>{fmt(filtradas.length)} líneas · {fmt(filtradas.filter(r => r.abierto).length)} abiertas</span>
               <button className="btn-link" onClick={limpiar}>Limpiar filtros</button>
@@ -400,7 +420,7 @@ export default function App() {
                 </thead>
                 <tbody>
                   {filtradas.map(r => (
-                    <tr key={r.id_entrega} className={selectedId === r.id_entrega ? 'sel' : ''} onClick={() => setSelectedId(r.id_entrega)}>
+                    <tr key={r.id_entrega} className={`${selectedId === r.id_entrega ? 'sel' : ''} ${r.rechazoPend ? 'fila-rech' : ''}`} onClick={() => setSelectedId(r.id_entrega)}>
                       {COLS.map(c => <td key={c.k} className={c.n ? 'num' : ''}>{celda(r, c.k)}</td>)}
                     </tr>
                   ))}

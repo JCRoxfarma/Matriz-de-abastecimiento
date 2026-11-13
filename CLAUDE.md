@@ -92,7 +92,22 @@ de importaciones) (`app/src/lib/importer.js`), y:
   traiga el Excel, para que las correcciones que Johany haga en su archivo
   sí lleguen.
 - `ingresos_sistema` solo agrega filas nuevas (dedup por `numero_analisis`),
-  nunca se borran ni se pisan las anteriores.
+  nunca se borran ni se pisan las anteriores. **Única excepción (aprobada
+  por Johany, nov-2026):** el estado de calidad (`estado_ingreso_sistema`,
+  columna `est`) de un análisis que ya existía sí se actualiza en cada
+  importación (Espera → Aprobado / Rechazado). Cantidad y fecha nunca.
+- **Rechazos de calidad** (`supabase/rechazos.sql`): un lote `Rechazado` no
+  cuenta como ingresado (almacén le da salida y el proveedor repone con la
+  misma OC). El importador lo anota en la entrega que se estaba llenando
+  (`cant_rechazada`, `fecha_rechazo`) y esa entrega vuelve a quedar con
+  saldo. Mientras falte la reposición la fila sale en rojo con la etiqueta
+  "Rechazo de calidad", primero en la tabla y con un aviso arriba; al
+  completarse queda "Tuvo rechazo". En el panel (`RechazoCalidad.jsx`) se
+  marca `nc_enviada` (nota de crédito enviada a contabilidad: solo el check,
+  sin número, por decisión de Johany). OTIF: la entrega rechazada no cuenta
+  como a tiempo; su llegada real es la de la reposición aprobada. Los
+  correos marcan "Reposición por rechazo de calidad" e Indicadores tiene la
+  sección Rechazos de calidad.
 - Cada importación recalcula `cant_ingresada`, `saldo_pendiente`,
   `pct_ingreso`, `estado_ingreso`, `fecha_real_ingreso` y `dias_atraso` en
   `programacion_oc`, cruzando por OC + SKU contra todos los eventos de

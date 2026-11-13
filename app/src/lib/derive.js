@@ -147,7 +147,12 @@ export function enrich(r) {
   // cerraste (aunque sea con tolerancia y le falte un poco), ya no cuenta
   // como pendiente.
   const estadoIngreso = abierto ? 'Pendiente' : 'Completo'
-  return { ...r, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
+  // Rechazo de calidad: lo rechazado ya no cuenta como ingresado (lo
+  // descuenta el importador). Mientras falte la reposicion, la linea se ve
+  // en rojo; cuando se completa queda marcada como "Tuvo rechazo".
+  const rechazoPend = (r.cant_rechazada || 0) > 0 && abierto
+  const tuvoRechazo = (r.cant_rechazada || 0) > 0 && !abierto
+  return { ...r, rechazoPend, tuvoRechazo, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
 }
 
 // Categoria de cada linea. El Excel no trae el tipo: el producto terminado

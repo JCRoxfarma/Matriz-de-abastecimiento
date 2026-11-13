@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { supabase } from './supabaseClient'
-import { insertInBatches, fetchAll } from './importer'
+import { insertInBatches, fetchAll, esRechazado } from './importer'
 import { CERRADAS } from './derive'
 
 // El texto de los encabezados de mes trae el año y cambia cada ciclo (ej.
@@ -340,9 +340,11 @@ export async function obtenerOcPorSku(codigos) {
 export async function obtenerIngresosPosterioresA(codigos, fechaCorte) {
   const m = new Map()
   if (!codigos.length || !fechaCorte) return m
-  const data = await fetchAll('ingresos_sistema', 'codigo,cantidad_ingresada,fecha_ingreso',
+  const data = await fetchAll('ingresos_sistema', 'codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema',
     q => q.in('codigo', codigos).gt('fecha_ingreso', fechaCorte))
   for (const row of data) {
+    // Un lote rechazado por Calidad sale del almacen: no suma stock.
+    if (esRechazado(row)) continue
     m.set(row.codigo, (m.get(row.codigo) || 0) + (row.cantidad_ingresada || 0))
   }
   return m

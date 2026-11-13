@@ -102,13 +102,31 @@ export async function insertInBatches(table, rows, size = 500) {
 // lo que llega completa primero la E01 unificada.
 const programadoEfectivo = e => Math.max(0, (e.cant_programada || 0) + (e.ajuste_cantidad || 0))
 
-export function calcularIngresos(entregas, eventos) {
+// Lo rechazado por Calidad no cuenta como ingresado: almacen le da salida y
+// el proveedor repone con la misma OC. El lote rechazado se anota en la
+// entrega que se estaba llenando en ese momento (cant_rechazada y
+// fecha_rechazo), asi esa entrega vuelve a quedar con saldo hasta que
+// llegue la reposicion aprobada.
+export const esRechazado = ev => /^rechaz/i.test(String(ev.estado_ingreso_sistema || '').trim())
+
+export function calcularIngresos(entregas, eventosTodos) {
   entregas.sort((a, b) => (a.orden_entrega || 0) - (b.orden_entrega || 0))
-  eventos.sort((a, b) => (a.fecha_ingreso || '').localeCompare(b.fecha_ingreso || ''))
+  eventosTodos.sort((a, b) => (a.fecha_ingreso || '').localeCompare(b.fecha_ingreso || ''))
+  for (const e of entregas) { e.cant_rechazada = 0; e.fecha_rechazo = null }
+  const eventos = []
 
   let entregaIdx = 0
   let acumuladoEnEntrega = 0
-  for (const ev of eventos) {
+  for (const ev of eventosTodos) {
+    if (esRechazado(ev)) {
+      const e = entregas[Math.min(entregaIdx, entregas.length - 1)]
+      if (e) {
+        e.cant_rechazada += ev.cantidad_ingresada || 0
+        if (!e.fecha_rechazo || (ev.fecha_ingreso && ev.fecha_ingreso > e.fecha_rechazo)) e.fecha_rechazo = ev.fecha_ingreso || null
+      }
+      continue
+    }
+    eventos.push(ev)
     let restante = ev.cantidad_ingresada || 0
     while (restante > 0 && entregaIdx < entregas.length) {
       const e = entregas[entregaIdx]
@@ -173,6 +191,23 @@ function recalcularGrupos(entregas, eventos) {
   for (const [k, grupo] of entregasPorGrupo) calcularIngresos(grupo, eventosPorGrupo.get(k) || [])
 }
 
+// Calidad cambia el estado de un analisis despues de que ya entro (Espera ->
+// Aprobado o Rechazado). Los ingresos nunca se pisan, salvo este estado:
+// devuelve los analisis ya guardados cuyo estado cambio en el archivo, y
+// actualiza la lista en memoria para que el calculo use el estado nuevo.
+function cambiosDeEstado(existentesIng, filasArchivo) {
+  const porNumero = new Map(existentesIng.map(r => [r.numero_analisis, r]))
+  const cambios = new Map()
+  for (const f of filasArchivo) {
+    const prev = f.numero_analisis && porNumero.get(f.numero_analisis)
+    const nuevo = f.estado_ingreso_sistema == null ? '' : String(f.estado_ingreso_sistema).trim()
+    if (!prev || !nuevo || nuevo === (prev.estado_ingreso_sistema || '')) continue
+    prev.estado_ingreso_sistema = nuevo
+    cambios.set(prev.numero_analisis, { numero_analisis: prev.numero_analisis, oc: prev.oc, codigo: prev.codigo, estado_ingreso_sistema: nuevo })
+  }
+  return [...cambios.values()]
+}
+
 export async function importarExcel(file, onStep) {
   onStep?.('Leyendo el archivo...')
   const buf = await file.arrayBuffer()
@@ -203,7 +238,7 @@ export async function importarExcel(file, onStep) {
   const descripcionPorSku = new Map()
   for (const r of existentesProg) if (limpio(r.descripcion)) descripcionPorSku.set(String(r.sku), r.descripcion)
 
-  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso')
+  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
   const numerosExistentes = new Set(existentesIng.map(r => r.numero_analisis))
 
   onStep?.('Preparando las entregas...')
@@ -268,8 +303,9 @@ export async function importarExcel(file, onStep) {
   const entregasUnicas = [...new Map(entregas.map(e => [e.id_entrega, e])).values()]
 
   onStep?.('Sumando los ingresos nuevos...')
-  const ingresosNuevosRaw = rawIng
-    .map(raw => mapRow(raw, INGRESOS_COLUMNS))
+  const filasIng = rawIng.map(raw => mapRow(raw, INGRESOS_COLUMNS))
+  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng)
+  const ingresosNuevosRaw = filasIng
     .filter(e => e.numero_analisis && !numerosExistentes.has(e.numero_analisis))
   // Igual que con las entregas, el Excel puede traer el mismo ingreso
   // repetido dos veces si viene de dos archivos de origen distintos.
@@ -281,11 +317,13 @@ export async function importarExcel(file, onStep) {
   onStep?.('Guardando en la base de datos...')
   await upsertInBatches('programacion_oc', entregasUnicas, 'id_entrega')
   await insertInBatches('ingresos_sistema', ingresosNuevos)
+  if (cambiosEstado.length) await upsertInBatches('ingresos_sistema', cambiosEstado, 'numero_analisis')
   await registrarImportacion('programacion', file.name, entregasUnicas.length)
 
   return {
     entregas: entregasUnicas.length,
     ingresosNuevos: ingresosNuevos.length,
+    estadosActualizados: cambiosEstado.length,
   }
 }
 
@@ -301,23 +339,25 @@ export async function importarIngresos(file, onStep) {
   const rawIng = XLSX.utils.sheet_to_json(hoja, { defval: null })
 
   onStep?.('Revisando lo que ya tienes guardado...')
-  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso')
+  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
   const numerosExistentes = new Set(existentesIng.map(r => r.numero_analisis))
 
   onStep?.('Sumando los ingresos nuevos...')
-  const ingresosNuevosRaw = rawIng
-    .map(raw => ({ ...mapRow(raw, INGRESOS_RAW_COLUMNS), archivo_origen_ingreso: file.name }))
+  const filasIng = rawIng.map(raw => ({ ...mapRow(raw, INGRESOS_RAW_COLUMNS), archivo_origen_ingreso: file.name }))
+  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng)
+  const ingresosNuevosRaw = filasIng
     .filter(e => e.numero_analisis && !numerosExistentes.has(e.numero_analisis))
   const ingresosNuevos = [...new Map(ingresosNuevosRaw.map(e => [e.numero_analisis, e])).values()]
     .map(e => ({ ...e, ingreso_acumulado: e.cantidad_ingresada }))
 
   onStep?.('Calculando avance de cada entrega...')
   const entregas = await fetchAll('programacion_oc',
-    'id_entrega,oc,sku,orden_entrega,cant_programada,precio_unitario,fecha_programada_ingreso')
+    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso')
   recalcularGrupos(entregas, [...existentesIng, ...ingresosNuevos])
 
   onStep?.('Guardando en la base de datos...')
   await insertInBatches('ingresos_sistema', ingresosNuevos)
+  if (cambiosEstado.length) await upsertInBatches('ingresos_sistema', cambiosEstado, 'numero_analisis')
   const actualizaciones = entregas.map(e => ({
     id_entrega: e.id_entrega,
     // oc y sku son obligatorias en la tabla: aunque no cambien, Postgres
@@ -332,12 +372,15 @@ export async function importarIngresos(file, onStep) {
     dias_atraso: e.dias_atraso,
     valor_ingresado: e.valor_ingresado,
     valor_pendiente: e.valor_pendiente,
+    cant_rechazada: e.cant_rechazada,
+    fecha_rechazo: e.fecha_rechazo,
   }))
   await upsertInBatches('programacion_oc', actualizaciones, 'id_entrega')
   await registrarImportacion('ingresos', file.name, ingresosNuevos.length)
 
   return {
     ingresosNuevos: ingresosNuevos.length,
+    estadosActualizados: cambiosEstado.length,
     entregasActualizadas: entregas.length,
   }
 }

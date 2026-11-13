@@ -146,7 +146,7 @@ export default function SeguimientoOI({ categoria = '' }) {
         const busca = `${r.oc} ${r.sku} ${r.descripcion || ''} ${r.proveedor || ''} ${r.comprador || ''}`.toLowerCase()
         if (!busca.includes(qq)) return false
       }
-      if (fGrupo && !GRUPOS[fGrupo](r)) return false
+      if (fGrupo === 'rechazo' ? !r.rechazoPend : fGrupo && !GRUPOS[fGrupo](r)) return false
       if (fEtapa && Number(fEtapa) !== r.etapa) return false
       // Completo = la OI ya ingreso toda a almacen (etapa Completado);
       // Pendiente = todavia en alguna etapa del proceso.
@@ -158,6 +158,7 @@ export default function SeguimientoOI({ categoria = '' }) {
       return true
     })
     out.sort((a, b) => {
+      if (a.rechazoPend !== b.rechazoPend) return a.rechazoPend ? -1 : 1
       let x = a[sortK], y = b[sortK]
       if (x == null) x = ''
       if (y == null) y = ''
@@ -219,7 +220,13 @@ export default function SeguimientoOI({ categoria = '' }) {
       }
       case 'oc': return <span className="mono">{r.oc}</span>
       case 'sku': return <span className="mono">{r.sku}</span>
-      case 'descripcion': return <div className="dsc">{r.descripcion || ''}</div>
+      case 'descripcion': return (
+        <div className="dsc">
+          {r.rechazoPend && <span className="tag t-rech" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und${r.fecha_rechazo ? ' el ' + fdate(r.fecha_rechazo) : ''}. Falta la reposición del proveedor.`}>Rechazo de calidad</span>}
+          {r.tuvoRechazo && <span className="tag t-gry" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und; el proveedor ya repuso.`}>Tuvo rechazo</span>}
+          {r.descripcion || ''}
+        </div>
+      )
       case 'proveedor': return <div className="prov">{r.proveedor || ''}</div>
       case 'comprador': return <span className={`nw ${!r.comprador ? 'dim' : ''}`}>{r.comprador || 'Sin asignar'}</span>
       case 'incoterm': return r.incoterm ? <span className="tag t-blu">{r.incoterm}</span> : <span className="dim">-</span>
@@ -296,6 +303,17 @@ export default function SeguimientoOI({ categoria = '' }) {
                 {compradores.map(v => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
+            {(() => {
+              const n = rows.filter(r => r.rechazoPend).length
+              if (!n) return null
+              return (
+                <div className={`aviso-rech ${fGrupo === 'rechazo' ? 'on' : ''}`}>
+                  <Icono nombre="alerta" tam={18} />
+                  <span><b>{n} {n === 1 ? 'línea tiene' : 'líneas tienen'} rechazo de calidad</b> pendiente de reposición del proveedor.</span>
+                  <button className="btn" onClick={() => { setFEtapa(''); setFGrupo(g => g === 'rechazo' ? '' : 'rechazo') }}>{fGrupo === 'rechazo' ? 'Ver todas' : 'Ver solo estas'}</button>
+                </div>
+              )
+            })()}
             <div className="oc-conteo">
               <span>{fmt(filtradas.length)} líneas OI</span>
               <button className="btn-link" onClick={() => { setQInput(''); setQ(''); setFGrupo(''); setFEtapa(''); setFEstado(''); setFMes(''); setFProv(''); setFComp('') }}>Limpiar filtros</button>
@@ -315,7 +333,7 @@ export default function SeguimientoOI({ categoria = '' }) {
                 </thead>
                 <tbody>
                   {filtradas.map(r => (
-                    <tr key={r.id_entrega} className={selectedId === r.id_entrega ? 'sel' : ''} onClick={() => setSelectedId(r.id_entrega)}>
+                    <tr key={r.id_entrega} className={`${selectedId === r.id_entrega ? 'sel' : ''} ${r.rechazoPend ? 'fila-rech' : ''}`} onClick={() => setSelectedId(r.id_entrega)}>
                       {COLS_OI.map(c => <td key={c.k} {...propsCelda(c)}>{celda(r, c.k)}</td>)}
                     </tr>
                   ))}

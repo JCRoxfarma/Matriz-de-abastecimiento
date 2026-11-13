@@ -104,6 +104,12 @@ export function generarToken(proveedor) {
   return `${b64}.${hmac}`
 }
 
+// Debajo del material, cuando la entrega tuvo un rechazo de calidad y el
+// proveedor todavia no repone.
+const notaRechazo = r => r.rechazoPend
+  ? `<div style="color:#dc2626;font-weight:600;font-size:12px;margin-top:3px">Reposición por rechazo de calidad (${fmt(r.cant_rechazada)} und rechazadas)</div>`
+  : ''
+
 export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
   const filasHtml = filas
     .sort((a, b) => (fechaEfectiva(a) || '').localeCompare(fechaEfectiva(b) || ''))
@@ -113,7 +119,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
       return `<tr style="${bgFila}">
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:center">${r.oc}</td>
       <td style="border:1px solid #d0d5dd;padding:8px">${r.sku}</td>
-      <td style="border:1px solid #d0d5dd;padding:8px">${r.descripcion || ''}</td>
+      <td style="border:1px solid #d0d5dd;padding:8px">${r.descripcion || ''}${notaRechazo(r)}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:right">${fmt(r.saldo_pendiente)}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:center">${fdate(fechaEfectiva(r))}</td>
       <td style="border:1px solid #d0d5dd;padding:8px;text-align:center;${esAtraso ? 'color:#dc2626;font-weight:600' : ''}">${diasTexto(r)}</td>
@@ -124,13 +130,19 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
   const atrasadas = filas.filter(r => r.dd != null && r.dd < 0).length
   const proximas = filas.filter(r => r.dd != null && r.dd >= 0 && r.dd <= 7).length
 
+  const rechazos = filas.filter(r => r.rechazoPend).length
   let alerta = ''
+  if (rechazos > 0) {
+    alerta += `<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px">
+      <strong style="color:#dc2626">Reposición por rechazo de calidad:</strong> ${rechazos > 1 ? `${rechazos} entregas fueron rechazadas` : 'Una entrega fue rechazada'} por nuestro control de calidad. Favor confirmar la fecha de reposición con la misma orden de compra.
+    </div>`
+  }
   if (atrasadas > 0) {
-    alerta = `<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px">
+    alerta += `<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px">
       <strong style="color:#dc2626">Atencion:</strong> Tiene <strong>${atrasadas}</strong> entrega${atrasadas > 1 ? 's' : ''} con fecha vencida. Favor coordinar la entrega a la brevedad.
     </div>`
   } else if (proximas > 0) {
-    alerta = `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:12px 16px;margin:16px 0;border-radius:4px">
+    alerta += `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:12px 16px;margin:16px 0;border-radius:4px">
       <strong style="color:#b45309">Proximas:</strong> Tiene <strong>${proximas}</strong> entrega${proximas > 1 ? 's' : ''} programada${proximas > 1 ? 's' : ''} en los proximos 7 dias.
     </div>`
   }
@@ -212,7 +224,7 @@ export function generarEmailHtmlOI(proveedor, filas) {
       return `<tr>
       <td style="${td};text-align:center">${r.oc}</td>
       <td style="${td}">${r.sku}</td>
-      <td style="${td}">${r.descripcion || ''}</td>
+      <td style="${td}">${r.descripcion || ''}${notaRechazo(r)}</td>
       <td style="${td};text-align:right">${fmt(r.saldo_pendiente)}</td>
       <td style="${td};text-align:center">${r.etapaLabel || ''}</td>
       <td style="${td};text-align:center">${produccionTexto(r)}</td>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt, fdate } from './lib/derive'
-import { fetchAll } from './lib/importer'
+import { fetchAll, esRechazado } from './lib/importer'
 import { cargarOI, ETAPAS } from './lib/seguimientoOI'
 import { obtenerLeadTimes, leadTimeEsperado, leadTimeReal } from './lib/leadTime'
 
@@ -305,10 +305,12 @@ export default function Indicadores({ rows }) {
   const [err, setErr] = useState(null)
 
   useEffect(() => {
-    fetchAll('ingresos_sistema', 'oc,codigo,fecha_ingreso')
+    fetchAll('ingresos_sistema', 'oc,codigo,fecha_ingreso,estado_ingreso_sistema')
       .then(data => {
         const m = new Map()
         for (const e of data) {
+          // Un lote rechazado no cuenta como llegada (OTIF: vale la reposicion).
+          if (esRechazado(e)) continue
           const k = `${e.oc}|${e.codigo}`
           if (e.fecha_ingreso && (!m.has(k) || e.fecha_ingreso > m.get(k))) m.set(k, e.fecha_ingreso)
         }
@@ -571,6 +573,27 @@ export default function Indicadores({ rows }) {
   const variacion = otif.actual?.otif != null && otif.anterior?.otif != null
     ? Math.round((otif.actual.otif - otif.anterior.otif) * 10) / 10 : null
 
+
+  // Rechazos de calidad: entregas donde Calidad rechazo un lote (lo
+  // calcula el importador desde el estado "Rechazado" de los ingresos).
+  const rechazos = useMemo(() => {
+    const con = rows.filter(r => (r.cant_rechazada || 0) > 0 && r.estado_gestion !== 'Orden Anulada')
+    const porProv = new Map()
+    for (const r of con) {
+      const k = r.proveedor || 'Sin proveedor'
+      const p = porProv.get(k) || { nombre: k, veces: 0, und: 0 }
+      p.veces++; p.und += r.cant_rechazada || 0
+      porProv.set(k, p)
+    }
+    return {
+      total: con.length,
+      pendientes: con.filter(r => r.rechazoPend).length,
+      unidades: con.reduce((a, r) => a + (r.cant_rechazada || 0), 0),
+      ncPendientes: con.filter(r => !r.nc_enviada).length,
+      porProv: [...porProv.values()].sort((a, b) => b.veces - a.veces || b.und - a.und).slice(0, 10)
+        .map(p => ({ nombre: p.nombre, valor: p.veces, sub: `${fmt(p.und)} und`, detalle: `${p.nombre}: ${p.veces} ${p.veces === 1 ? 'entrega rechazada' : 'entregas rechazadas'}, ${fmt(p.und)} unidades` })),
+    }
+  }, [rows])
   return (
     <div className="ind">
       <div className="ind-top">
@@ -651,6 +674,20 @@ export default function Indicadores({ rows }) {
           <h3>Proveedores que más reprograman <span className="dim">(veces que se movió la fecha)</span></h3>
           <BarrasH formato={v => fmt(v)} filas={proveedores.reprogramaciones} />
         </div>
+      </Seccion>
+
+      <Seccion titulo="Rechazos de calidad">
+        <div className="ind-kpis">
+          <Tarjeta titulo="Esperando reposición" valor={fmt(rechazos.pendientes)} color={rechazos.pendientes ? 'var(--red)' : 'var(--grn)'} pie="entregas rechazadas que el proveedor aún no repone" />
+          <Tarjeta titulo="Entregas con rechazo" valor={fmt(rechazos.total)} color="var(--ink)" pie={`${fmt(rechazos.unidades)} unidades rechazadas`} />
+          <Tarjeta titulo="Nota de crédito por enviar" valor={fmt(rechazos.ncPendientes)} color={rechazos.ncPendientes ? 'var(--amb)' : 'var(--grn)'} pie="sin marcar como enviada a contabilidad" />
+        </div>
+        {rechazos.porProv.length > 0 && (
+          <div className="ind-card">
+            <h3>Rechazos por proveedor <span className="dim">(entregas con rechazo de calidad)</span></h3>
+            <BarrasH formato={v => fmt(v)} filas={rechazos.porProv} />
+          </div>
+        )}
       </Seccion>
 
       <Seccion titulo="Seguimiento">
