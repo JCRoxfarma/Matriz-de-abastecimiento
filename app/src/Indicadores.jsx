@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fmt, fdate } from './lib/derive'
 import { fetchAll, esRechazado } from './lib/importer'
+import Icono from './Icono'
+import { exportarCumplimiento } from './lib/exportarCumplimiento'
 import { cargarOI, ETAPAS } from './lib/seguimientoOI'
 import { obtenerLeadTimes, leadTimeEsperado, leadTimeReal } from './lib/leadTime'
 
@@ -58,7 +60,7 @@ function evaluarEntrega(r, base, ultimaLlegada, hoy) {
   // Atraso solo de lo que ya llego: lo vencido que aun no llega se ve
   // aparte (Atrasadas hoy) y no infla el promedio.
   const atraso = llegada ? Math.max(0, diasEntre(compromiso, llegada)) : 0
-  return { r, compromiso, completo, aTiempo, otif: completo && aTiempo, atraso, pendiente: !llegada }
+  return { r, compromiso, llegada, completo, aTiempo, otif: completo && aTiempo, atraso, pendiente: !llegada }
 }
 
 // ---------- Piezas visuales ----------
@@ -300,6 +302,11 @@ function BarrasH({ filas, formato, maximo, colorDe }) {
 
 export default function Indicadores({ rows }) {
   const [base, setBase] = useState('original')
+  // Exportar cumplimiento (OTIF) de un mes a Excel, para enviar al proveedor.
+  const [expAbierto, setExpAbierto] = useState(false)
+  const [expMes, setExpMes] = useState('')
+  const [expProv, setExpProv] = useState('')
+  const [expMsg, setExpMsg] = useState('')
   const [mesPend, setMesPend] = useState('')
   const [ultimaLlegada, setUltimaLlegada] = useState(new Map())
   const [oi, setOi] = useState([])
@@ -617,7 +624,38 @@ export default function Indicadores({ rows }) {
       </div>
       {err && <div className="empty">No se pudo cargar todo: {err}</div>}
 
-      <Seccion titulo="Cumplimiento de proveedores (OTIF)" etiqueta={`Meta ${META_OTIF}%`}>
+      <Seccion titulo="Cumplimiento de proveedores (OTIF)" etiqueta={`Meta ${META_OTIF}%`}
+        accion={<button className="btn" onClick={() => setExpAbierto(v => !v)}><Icono nombre="excel" tam={16} /> Exportar cumplimiento</button>}>
+        {expAbierto && (() => {
+          const meses = [...new Set(evaluadas.map(e => e.compromiso.slice(0, 7)))].sort().reverse()
+          const mes = expMes || meses.find(m => m < mesActual) || meses[0] || ''
+          const provs = [...new Set(evaluadas.filter(e => e.compromiso.slice(0, 7) === mes).map(e => e.r.proveedor).filter(Boolean))].sort()
+          const prov = provs.includes(expProv) ? expProv : ''
+          const descargar = async () => {
+            setExpMsg('Preparando...')
+            try {
+              await exportarCumplimiento({ evaluadas, mes, proveedor: prov, base, meta: META_OTIF })
+              setExpMsg('Listo, revisa tus descargas.')
+            } catch (e) { setExpMsg(e.message) }
+          }
+          return (
+            <div className="ind-card ind-exp">
+              <label>Mes
+                <select value={mes} onChange={e => { setExpMes(e.target.value); setExpMsg('') }}>
+                  {meses.map(m => <option key={m} value={m}>{mesLargo(m).replace(/^./, c => c.toUpperCase())}{m === mesActual ? ' (en curso)' : ''}</option>)}
+                </select>
+              </label>
+              <label>Proveedor
+                <select value={prov} onChange={e => { setExpProv(e.target.value); setExpMsg('') }}>
+                  <option value="">Todos los proveedores</option>
+                  {provs.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+              <button className="btn act" onClick={descargar} disabled={!mes}><Icono nombre="excel" tam={16} /> Descargar Excel</button>
+              <span className="dim">{expMsg || `Medido contra la fecha ${base === 'original' ? 'original' : 'vigente'} (cámbialo arriba). Hoja Resumen + hoja Detalle por entrega.`}</span>
+            </div>
+          )
+        })()}
         <div className="ind-kpis">
           <Tarjeta destacada titulo={`OTIF ${otif.actual ? mesLargo(otif.actual.mes) : 'del mes'}`}
             valor={otif.actual?.otif != null ? `${otif.actual.otif}%` : '-'}

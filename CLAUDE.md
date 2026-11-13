@@ -155,6 +155,10 @@ mide cada entrega cuya fecha comprometida ya pasó (las vencidas sin llegar
 cuentan como no cumplidas; las anuladas no cuentan), por defecto contra la
 fecha **original** (antes de reprogramar), con opción de fecha vigente. El
 atraso promedio es solo de lo que llegó tarde.
+El botón **Exportar cumplimiento** (sección OTIF) descarga un Excel de un
+mes, de todos los proveedores o de uno (para enviárselo): hoja Resumen por
+proveedor y hoja Detalle por entrega (`lib/exportarCumplimiento.js`), con
+las mismas entregas y reglas que la pestaña (incluida la fecha base elegida).
 La sección **Lead time real vs esperado** mide días desde la emisión de la
 OC/OI (`fecha_emision_oc`) hasta que la entrega quedó completa
 (`fecha_real_ingreso`), contra el lead time configurado; las entregas con
