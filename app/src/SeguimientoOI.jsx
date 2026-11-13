@@ -224,6 +224,7 @@ export default function SeguimientoOI({ categoria = '' }) {
         <div className="dsc">
           {r.rechazoPend && <span className="tag t-rech" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und${r.fecha_rechazo ? ' el ' + fdate(r.fecha_rechazo) : ''}. Falta la reposición del proveedor.`}>Rechazo de calidad</span>}
           {r.tuvoRechazo && <span className="tag t-gry" title={`Calidad rechazó ${fmt(r.cant_rechazada)} und; el proveedor ya repuso.`}>Tuvo rechazo</span>}
+          {r.conDesmedro && <span className="tag t-amb" title={`${fmt(r.cant_rechazada)} und rotas en tránsito, cerradas como gasto por desmedro.`}>Desmedro</span>}
           {r.descripcion || ''}
         </div>
       )

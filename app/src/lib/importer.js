@@ -122,6 +122,16 @@ export function calcularIngresos(entregas, eventosTodos) {
       const e = entregas[Math.min(entregaIdx, entregas.length - 1)]
       if (e) {
         e.cant_rechazada += ev.cantidad_ingresada || 0
+        // Desmedro (OI rota en transito): lo danado no se repone, asi que
+        // para el reparto cuenta como si esa parte de la entrega ya llego.
+        if (e.desmedro) {
+          acumuladoEnEntrega += ev.cantidad_ingresada || 0
+          if (acumuladoEnEntrega >= programadoEfectivo(e)) {
+            e._fechaCompleta = ev.fecha_ingreso
+            entregaIdx++
+            acumuladoEnEntrega = 0
+          }
+        }
         if (!e.fecha_rechazo || (ev.fecha_ingreso && ev.fecha_ingreso > e.fecha_rechazo)) e.fecha_rechazo = ev.fecha_ingreso || null
       }
       continue
@@ -151,9 +161,11 @@ export function calcularIngresos(entregas, eventosTodos) {
     // programado) se perdia sin mostrarse en ningun lado.
     const esUltima = i === entregas.length - 1
     const prog = programadoEfectivo(e)
-    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, prog)
+    // Con desmedro, lo danado se da por cerrado: solo falta el resto.
+    const desm = e.desmedro ? e.cant_rechazada : 0
+    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, Math.max(0, prog - desm))
     restanteGlobal -= fill
-    const saldo = Math.max(0, prog - fill)
+    const saldo = Math.max(0, prog - desm - fill)
     e.cant_ingresada = fill
     e.saldo_pendiente = saldo
     e.pct_ingreso = prog ? Math.round((fill / prog) * 1000) / 10 : 0
@@ -227,7 +239,7 @@ export async function importarExcel(file, onStep) {
 
   onStep?.('Revisando lo que ya tienes guardado...')
   const existentesProg = await fetchAll('programacion_oc',
-    'id_entrega,sku,descripcion,fecha_programada_ingreso,estado_gestion,motivo_demora,responsable_accion,criticidad,observaciones,cierre_manual,motivo_cierre,reabierta,historial,fecha_confirmada,ajuste_cantidad,motivo_ajuste')
+    'id_entrega,sku,descripcion,fecha_programada_ingreso,estado_gestion,motivo_demora,responsable_accion,criticidad,observaciones,cierre_manual,motivo_cierre,reabierta,historial,fecha_confirmada,ajuste_cantidad,motivo_ajuste,desmedro')
   const existentesPorId = new Map(existentesProg.map(r => [r.id_entrega, r]))
 
   // A veces el Excel trae una fila sin descripcion (paso con la OI
@@ -289,6 +301,7 @@ export async function importarExcel(file, onStep) {
       fecha_confirmada: prev ? prev.fecha_confirmada : null,
       ajuste_cantidad: prev ? (prev.ajuste_cantidad || 0) : 0,
       motivo_ajuste: prev ? prev.motivo_ajuste : null,
+      desmedro: prev ? !!prev.desmedro : false,
     }
   }).filter(e => e.id_entrega && e.sku)
 
@@ -352,7 +365,7 @@ export async function importarIngresos(file, onStep) {
 
   onStep?.('Calculando avance de cada entrega...')
   const entregas = await fetchAll('programacion_oc',
-    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso')
+    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro')
   recalcularGrupos(entregas, [...existentesIng, ...ingresosNuevos])
 
   onStep?.('Guardando en la base de datos...')

@@ -193,7 +193,7 @@ export default function PanelOI({ row, esEditor, onClose, onSaved }) {
             <div className="kv"><span>Valor entrega</span><b>{fmtM(row.valor_entrega, row.moneda)}</b></div>
           </div>
 
-          <RechazoCalidad row={row} esEditor={esEditor} onGuardado={p => onSaved({}, p)} />
+          <RechazoCalidad row={row} tipo="oi" esEditor={esEditor} onGuardado={p => onSaved({}, p)} />
 
           <LeadTimeEntrega row={row} etiqueta="OI" />
 

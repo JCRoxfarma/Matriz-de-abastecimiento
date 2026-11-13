@@ -108,6 +108,14 @@ de importaciones) (`app/src/lib/importer.js`), y:
   como a tiempo; su llegada real es la de la reposición aprobada. Los
   correos marcan "Reposición por rechazo de calidad" e Indicadores tiene la
   sección Rechazos de calidad.
+- **Desmedro en tránsito (solo OI):** si lo rechazado es mercadería rota en
+  el transporte, no es culpa del proveedor ni se repone. En el panel de la
+  OI se marca "Rotura en tránsito: cerrar como gasto por desmedro"
+  (`desmedro`); la cantidad dañada es la misma del rechazo. Esa parte se da
+  por cerrada (saldo, reparto del importador e In Full la cuentan como
+  recibida), la línea queda con etiqueta ámbar "Desmedro", no sale en
+  rechazos por proveedor ni pide nota de crédito, y Indicadores →
+  Importaciones muestra el gasto por desmedro (precio × unidades dañadas).
 - Cada importación recalcula `cant_ingresada`, `saldo_pendiente`,
   `pct_ingreso`, `estado_ingreso`, `fecha_real_ingreso` y `dias_atraso` en
   `programacion_oc`, cruzando por OC + SKU contra todos los eventos de

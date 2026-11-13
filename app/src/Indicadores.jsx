@@ -44,7 +44,9 @@ function evaluarEntrega(r, base, ultimaLlegada, hoy) {
   const compromiso = base === 'original' ? (r.fprog0 || r.fecha_programada_ingreso) : (r.fecha_confirmada || r.fecha_programada_ingreso)
   if (!compromiso || compromiso > hoy) return null
   const prog = r.progEfectivo || 0
-  const ingresado = r.cant_ingresada || 0
+  // Desmedro (rotura en transito, no es culpa del proveedor): lo danado
+  // cuenta como entregado para In Full.
+  const ingresado = (r.cant_ingresada || 0) + (r.conDesmedro ? r.cant_rechazada || 0 : 0)
   const completo = prog > 0 && ingresado >= prog * MINIMO_COMPLETO
   // Fecha de llegada: la real de la entrega (cuando se completo) o, si no
   // la tiene (llego incompleta o se cerro con tolerancia), el ultimo
@@ -501,7 +503,11 @@ export default function Indicadores({ rows }) {
     const abiertas = oi.filter(r => r.abierto)
     const porEtapa = ETAPAS.map(e => ({ nombre: e.l, valor: abiertas.filter(r => r.etapa === e.n).length }))
     const conEta = abiertas.filter(r => r.seg?.eta)
+    const desm = oi.filter(r => r.desmedro && (r.cant_rechazada || 0) > 0)
+    const valorDe = mon => desm.filter(r => (mon === 'USD') === /us|dol/i.test(r.moneda || ''))
+      .reduce((a, r) => a + (r.precio_unitario || 0) * (r.cant_rechazada || 0), 0)
     return {
+      desmedro: { n: desm.length, und: desm.reduce((a, r) => a + (r.cant_rechazada || 0), 0), usd: valorDe('USD'), soles: valorDe('PEN') },
       abiertas: abiertas.length,
       porEtapa,
       etaVencida: conEta.filter(r => r.seg.eta < hoy).length,
@@ -577,7 +583,7 @@ export default function Indicadores({ rows }) {
   // Rechazos de calidad: entregas donde Calidad rechazo un lote (lo
   // calcula el importador desde el estado "Rechazado" de los ingresos).
   const rechazos = useMemo(() => {
-    const con = rows.filter(r => (r.cant_rechazada || 0) > 0 && r.estado_gestion !== 'Orden Anulada')
+    const con = rows.filter(r => (r.cant_rechazada || 0) > 0 && !r.desmedro && r.estado_gestion !== 'Orden Anulada')
     const porProv = new Map()
     for (const r of con) {
       const k = r.proveedor || 'Sin proveedor'
@@ -699,6 +705,13 @@ export default function Indicadores({ rows }) {
       </Seccion>
 
       <Seccion titulo="Importaciones">
+        {importaciones.desmedro.n > 0 && (
+          <div className="ind-kpis">
+            <Tarjeta titulo="OI con desmedro en tránsito" valor={fmt(importaciones.desmedro.n)} color="var(--amb)" pie={`${fmt(importaciones.desmedro.und)} unidades dañadas`} />
+            <Tarjeta titulo="Gasto por desmedro" valor={importaciones.desmedro.usd ? `US$ ${fmt(Math.round(importaciones.desmedro.usd))}` : `S/ ${fmt(Math.round(importaciones.desmedro.soles))}`}
+              color="var(--amb)" pie={importaciones.desmedro.usd && importaciones.desmedro.soles ? `+ S/ ${fmt(Math.round(importaciones.desmedro.soles))}` : 'precio de la OI × unidades dañadas'} />
+          </div>
+        )}
         <div className="ind-grid2">
           <div className="ind-card">
             <h3>OI abiertas por etapa <span className="dim">({fmt(importaciones.abiertas)} en total)</span></h3>

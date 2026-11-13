@@ -20,3 +20,9 @@ drop policy if exists "editores actualizan estado de ingresos_sistema" on ingres
 create policy "editores actualizan estado de ingresos_sistema" on ingresos_sistema
   for update using (exists (select 1 from perfiles where id = auth.uid() and rol = 'editor'))
   with check (exists (select 1 from perfiles where id = auth.uid() and rol = 'editor'));
+
+-- Desmedro en transito (solo OI, nov-2026): cuando lo rechazado por Calidad
+-- es mercaderia rota en el transporte, no es culpa del proveedor ni se
+-- repone: se cierra como gasto por desmedro. La cantidad danada es la misma
+-- del rechazo (cant_rechazada). Lo marca Johany desde el panel de la OI.
+alter table programacion_oc add column if not exists desmedro boolean not null default false;

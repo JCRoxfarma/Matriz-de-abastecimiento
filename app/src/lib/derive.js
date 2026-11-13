@@ -105,12 +105,16 @@ export function withEntregas(rows) {
 export function enrich(r) {
   const ajuste = r.ajuste_cantidad || 0
   const progEfectivo = (r.cant_programada || 0) + ajuste
-  const saldo = Math.max(0, progEfectivo - (r.cant_ingresada || 0))
+  // Desmedro (solo OI): lo roto en transito que rechazo Calidad se da por
+  // cerrado como gasto, no queda como saldo pendiente del proveedor.
+  const desm = r.desmedro ? (r.cant_rechazada || 0) : 0
+  const recibido = (r.cant_ingresada || 0) + desm
+  const saldo = Math.max(0, progEfectivo - recibido)
   const abierto = saldo > 0 && !CERRADAS.includes(r.estado_gestion)
   const tol = CERRADAS.includes(r.estado_gestion) && saldo > 0
   const dd = days(r.fecha_confirmada || r.fecha_programada_ingreso)
-  const avance = progEfectivo ? Math.min(1, (r.cant_ingresada || 0) / progEfectivo) : 0
-  const desv = progEfectivo ? ((r.cant_ingresada || 0) - progEfectivo) / progEfectivo : 0
+  const avance = progEfectivo ? Math.min(1, recibido / progEfectivo) : 0
+  const desv = progEfectivo ? (recibido - progEfectivo) / progEfectivo : 0
   const dentroTolerancia = tol && Math.abs(desv) <= TOLERANCIA_MARGEN
   const fueraTolerancia = tol && Math.abs(desv) > TOLERANCIA_MARGEN
   let sem2
@@ -150,9 +154,10 @@ export function enrich(r) {
   // Rechazo de calidad: lo rechazado ya no cuenta como ingresado (lo
   // descuenta el importador). Mientras falte la reposicion, la linea se ve
   // en rojo; cuando se completa queda marcada como "Tuvo rechazo".
-  const rechazoPend = (r.cant_rechazada || 0) > 0 && abierto
-  const tuvoRechazo = (r.cant_rechazada || 0) > 0 && !abierto
-  return { ...r, rechazoPend, tuvoRechazo, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
+  const rechazoPend = (r.cant_rechazada || 0) > 0 && abierto && !r.desmedro
+  const tuvoRechazo = (r.cant_rechazada || 0) > 0 && !abierto && !r.desmedro
+  const conDesmedro = !!r.desmedro && (r.cant_rechazada || 0) > 0
+  return { ...r, rechazoPend, tuvoRechazo, conDesmedro, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
 }
 
 // Categoria de cada linea. El Excel no trae el tipo: el producto terminado
