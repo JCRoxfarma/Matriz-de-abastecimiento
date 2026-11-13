@@ -446,7 +446,7 @@ export default function App() {
       </>}
 
       {selected && (
-        <Panel row={selected} esEditor={esEditor} onClose={() => setSelectedId(null)} onSaved={patch => actualizarFila(selected.id_entrega, patch)} />
+        <Panel row={selected} hermanas={rowsOC.filter(r => r.oc === selected.oc && r.sku === selected.sku)} esEditor={esEditor} onClose={() => setSelectedId(null)} onSaved={patch => actualizarFila(selected.id_entrega, patch)} onSavedOtra={(id, patch) => actualizarFila(id, patch)} />
       )}
 
       {mostrarComunicar && (

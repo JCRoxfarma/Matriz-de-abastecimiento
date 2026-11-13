@@ -4,8 +4,9 @@ import { fmt, fmtM, fdate, days, SEM, CERRADAS, gestOpts, separarMotivo, unirMot
 import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
 import RechazoCalidad from './RechazoCalidad'
+import { recalcularEntregasDe } from './lib/importer'
 
-export default function Panel({ row, esEditor, onClose, onSaved }) {
+export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, onSavedOtra }) {
   const opcionesGestion = gestOpts(row)
   const [ges, setGes] = useState(opcionesGestion.includes(row.estado_gestion) ? row.estado_gestion : opcionesGestion[0])
   const [mot, setMot] = useState(separarMotivo(row.motivo_demora).motivo)
@@ -16,6 +17,15 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
   const [com, setCom] = useState(row.observaciones || '')
   const [ajuste, setAjuste] = useState(row.ajuste_cantidad || 0)
   const [motAjuste, setMotAjuste] = useState(row.motivo_ajuste || '')
+  // Entregas parciales: si cambia la cantidad de esta entrega, la diferencia
+  // se puede descontar (o sumar) en la ultima entrega de la misma OC + SKU,
+  // para que el total de la OC no cambie.
+  const ultima = hermanas.filter(h => h.id_entrega !== row.id_entrega)
+    .sort((a, b) => (b.orden_entrega || 0) - (a.orden_entrega || 0))[0]
+  const esUltima = !ultima || (ultima.orden_entrega || 0) < (row.orden_entrega || 0)
+  const [compensar, setCompensar] = useState(true)
+  const delta = (Number(ajuste) || 0) - (row.ajuste_cantidad || 0)
+  const nuevaUltima = ultima ? (ultima.progEfectivo ?? ultima.cant_programada) - delta : null
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -49,10 +59,30 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
       if (!CERRADAS.includes(ges)) patch.estado_gestion = 'Reprogramado'
     }
     if (CERRADAS.includes(patch.estado_gestion)) patch.reabierta = false
+    const conCompensacion = delta !== 0 && compensar && ultima && !esUltima
+    if (conCompensacion && nuevaUltima < 0) { setSaving(false); alert(`La última entrega (${ultima.n_entrega}) no alcanza para descontar ${fmt(delta)}.`); return }
     const { error } = await supabase.from('programacion_oc').update(patch).eq('id_entrega', row.id_entrega)
+    if (error) { setSaving(false); alert('No se pudo guardar: ' + error.message); return }
+    if (conCompensacion) {
+      const pU = { ajuste_cantidad: (ultima.ajuste_cantidad || 0) - delta, motivo_ajuste: `Compensa ${delta > 0 ? '+' : ''}${fmt(delta)} de la ${row.n_entrega}` }
+      const { error: e2 } = await supabase.from('programacion_oc').update(pU).eq('id_entrega', ultima.id_entrega)
+      if (e2) { setSaving(false); alert('Se guardó esta entrega, pero no se pudo ajustar la última: ' + e2.message); return }
+      onSavedOtra?.(ultima.id_entrega, pU)
+    }
+    // Si cambio alguna cantidad, lo que ya llego se vuelve a repartir entre
+    // las entregas de esta OC + SKU (igual que al importar).
+    let propio = {}
+    if (delta !== 0) {
+      try {
+        const cambios = await recalcularEntregasDe(row.oc, row.sku)
+        for (const c of cambios) {
+          if (c.id_entrega === row.id_entrega) propio = c
+          else onSavedOtra?.(c.id_entrega, c)
+        }
+      } catch (e) { alert('Se guardó, pero no se pudo recalcular lo ingresado: ' + e.message) }
+    }
     setSaving(false)
-    if (error) { alert('No se pudo guardar: ' + error.message); return }
-    onSaved(patch)
+    onSaved({ ...patch, ...propio })
     setSaved(true)
     setTimeout(() => setSaved(false), 1400)
   }
@@ -203,7 +233,13 @@ export default function Panel({ row, esEditor, onClose, onSaved }) {
                   {(Number(ajuste) || 0) !== 0 && (
                     <input type="text" style={{ marginTop: 6 }} placeholder="Motivo del ajuste (ej. ruptura de stock)" value={motAjuste} onChange={e => setMotAjuste(e.target.value)} />
                   )}
-                  <div className="hint">Solo para casos excepcionales como ruptura de stock. Positivo para aumentar, negativo para reducir. El campo original del Excel no se modifica.</div>
+                  {delta !== 0 && ultima && !esUltima && (
+                    <label className="compensar">
+                      <input type="checkbox" checked={compensar} onChange={e => setCompensar(e.target.checked)} />
+                      <span>{delta > 0 ? 'Descontar' : 'Sumar'} {fmt(Math.abs(delta))} en la última entrega ({ultima.n_entrega}): {fmt(ultima.progEfectivo ?? ultima.cant_programada)} → <b>{fmt(nuevaUltima)}</b>. El total de la OC no cambia.</span>
+                    </label>
+                  )}
+                  <div className="hint">Positivo para aumentar, negativo para reducir (ej. esta entrega ahora es mayor y la diferencia sale de la última). El campo original del Excel no se modifica.</div>
                 </div>
                 <div className="fld">
                   <label>Comentario</label>

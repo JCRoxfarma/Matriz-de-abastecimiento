@@ -122,6 +122,12 @@ de importaciones) (`app/src/lib/importer.js`), y:
   `ingresos_sistema` acumulados hasta la fecha. El reparto es en orden: la
   entrega más antigua (según `orden_entrega`, calculado del N° entrega, ej.
   E01 antes que E02) se llena primero, porque así entregan los proveedores.
+- **Entregas parciales que cambian de cantidad:** en el panel de la OC, el
+  "Ajuste excepcional de cantidad" ofrece compensar la diferencia en la
+  última entrega de la misma OC + SKU (el total de la OC no cambia). Al
+  guardar un cambio de cantidad se vuelve a repartir lo ingresado de esa
+  OC + SKU al instante (`recalcularEntregasDe` en `importer.js`, mismo
+  cálculo que al importar).
 - `dias_atraso` nunca es negativo: si llega antes de lo programado, queda en
   0 (así lo calcula también el Excel original de Johany).
 - El Excel de Johany a veces trae la misma entrega duplicada (mismo OC +

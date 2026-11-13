@@ -397,3 +397,26 @@ export async function importarIngresos(file, onStep) {
     entregasActualizadas: entregas.length,
   }
 }
+
+// Vuelve a repartir los ingresos de UNA OC + SKU entre sus entregas (mismo
+// calculo que al importar). Se usa al cambiar la cantidad de una entrega
+// desde el panel: asi lo que llego se reacomoda al instante (por ejemplo,
+// si la E01 ahora es 60,225, esos 225 dejan de contarse en la E02) sin
+// esperar a subir otro Excel. Devuelve los cambios por id_entrega.
+export async function recalcularEntregasDe(oc, sku) {
+  const entregas = await fetchAll('programacion_oc',
+    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro',
+    q => q.eq('oc', oc).eq('sku', sku))
+  const eventos = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema',
+    q => q.eq('oc', oc).eq('codigo', sku))
+  calcularIngresos(entregas, eventos)
+  const cambios = entregas.map(e => ({
+    id_entrega: e.id_entrega, oc: e.oc, sku: e.sku,
+    cant_ingresada: e.cant_ingresada, saldo_pendiente: e.saldo_pendiente, pct_ingreso: e.pct_ingreso,
+    estado_ingreso: e.estado_ingreso, fecha_real_ingreso: e.fecha_real_ingreso, dias_atraso: e.dias_atraso,
+    valor_ingresado: e.valor_ingresado, valor_pendiente: e.valor_pendiente,
+    cant_rechazada: e.cant_rechazada, fecha_rechazo: e.fecha_rechazo,
+  }))
+  await upsertInBatches('programacion_oc', cambios, 'id_entrega')
+  return cambios
+}

@@ -595,3 +595,8 @@ a.btn-sm{text-decoration:none;display:inline-flex;align-items:center}
 .ind-exp select{min-width:200px;text-transform:none;font-weight:400}
 .ind-exp .btn{display:inline-flex;align-items:center;gap:7px}
 .ind-exp .dim{font-size:12px;flex:1;min-width:200px;padding-bottom:8px}
+.compensar{display:flex;gap:8px;align-items:flex-start;margin-top:8px;padding:9px 11px;border:1px solid #efd9b5;background:var(--ambbg);border-radius:9px;font-size:12.5px;color:var(--ink2);cursor:pointer;line-height:1.45}
+.compensar input{margin-top:2px;accent-color:var(--amb)}
+.compensar b{color:var(--ink);font-weight:600}
+.fld label.compensar{display:flex;font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink2);margin-bottom:0}
+.fld label.compensar input{width:auto;flex:none}
