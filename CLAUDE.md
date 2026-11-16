@@ -10,7 +10,8 @@ empaque. La usan compras, planeamiento y almacén.
   puede ver y editar el seguimiento; `lector` solo puede ver. No hay
   registro abierto: las cuentas las crea Johany desde el panel de Supabase.
 - **Marcha blanca (agosto 2026).** Por ahora solo Johany Cueto es `editor`.
-  Rosmery Ramirez y Cesar Falconi son `lector`. Ricardo Zegarra (otro
+  Rosmery Ramirez, Cesar Falconi y Kathy Roman (kroman@roxfarma.com) son
+  `lector` (cuentas recreadas el 16/11/2026 con clave temporal). Ricardo Zegarra (otro
   comprador) todavía no tiene cuenta: se agrega cuando Johany lo converse
   con él. No cambiar quién es editor sin que Johany lo pida.
 - **Todo gratis**: Supabase (base de datos) y Vercel (hosting), ambos en su
