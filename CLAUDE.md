@@ -186,6 +186,37 @@ interfaz. Crear una cuenta nueva es un proceso manual: se crea el usuario
 desde Supabase Authentication → Users, y después se le agrega una fila en
 `perfiles` con su rol.
 
+## Cómo se publican los cambios
+
+- Johany no programa: explicarle en español, directo y con pasos numerados.
+- Vercel (plan gratuito, equipo Roxfarma_Compras) publica solo lo que llega
+  a `main` en https://matriz-de-abastecimiento-kappa.vercel.app. Flujo: se
+  trabaja en una rama, se compila (`cd app && VITE_SUPABASE_URL=https://x.supabase.co
+  VITE_SUPABASE_ANON_KEY=x npm run build` para revisar que compile), se sube
+  la rama y se adelanta `main` (fast-forward) a esa rama. Johany pidió que
+  los cambios queden publicados, no solo en una rama.
+- Base de datos: proyecto Supabase `wrwivhmhgmkfozaldnpy`. Consultas de
+  solo lectura sin problema; cambios de datos o de estructura, confirmarlos
+  antes con Johany (y guardar el SQL en `supabase/`).
+- Después de publicar, pedirle a Johany que recargue con Ctrl + F5.
+- Manual de usuario con capturas (documento de Claude): https://claude.ai/artifact/DyaSocfZ9DRu9jX23e2jT8
+  Si cambia algo visible para el usuario, actualizar también el manual.
+
+## Pendientes conversados (noviembre 2026)
+
+- Espacio separado para producto terminado (otra "ventana", sin cruce con
+  material de empaque): Johany estaba conforme con la idea; falta que envíe
+  el archivo de ingresos de PT y el de explosión de PT para ver su formato.
+- Sección "Gasto por proveedor" en Indicadores (Pareto, gasto vs OTIF,
+  subidas de precio, proveedor único) y/o informe de estrategias: se
+  propuso, falta que elija.
+- Por confirmar con Johany: convertir los motivos de demora antiguos a la
+  lista nueva; ajustar los lead times configurados a los reales; que el
+  OTIF use la fecha nueva cuando el motivo es "Cambio en la demanda".
+- Datos a revisar: precio del FCO VID ÁMBAR 20 mL (SGD vs QSI, posible
+  diferencia de unidad), TUBO ICONYL 20 g (precio bajó 92%, posible error),
+  OC 2600002111 E02 con más ingreso aprobado que lo programado.
+
 ## Piezas del arnés que faltan (a propósito)
 
 No tiene ambiente de prueba ni pruebas automáticas todavía. Se dejaron fuera
