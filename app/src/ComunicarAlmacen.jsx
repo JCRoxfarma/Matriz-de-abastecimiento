@@ -3,7 +3,7 @@ import { fmt, fdate, nombreMes } from './lib/derive'
 import { exportarCuadroAlmacen, claveMes } from './lib/exportarAlmacen'
 
 export default function ComunicarAlmacen({ rows, onClose }) {
-  const [mes, setMes] = useState('')
+  const [sel, setSel] = useState([])
   const [generando, setGenerando] = useState(false)
 
   const pendientesTodas = useMemo(() => rows
@@ -13,16 +13,26 @@ export default function ComunicarAlmacen({ rows, onClose }) {
 
   const meses = useMemo(() => {
     const claves = [...new Set(pendientesTodas.map(r => r.fechaEfectiva.slice(0, 7)))].sort()
-    return claves.map(k => ({ valor: k, etiqueta: nombreMes(k) }))
+    const hoy = claveMes(0)
+    return claves.map(k => ({
+      valor: k,
+      etiqueta: nombreMes(k),
+      cantidad: pendientesTodas.filter(r => r.fechaEfectiva.startsWith(k)).length,
+      pasado: k < hoy,
+      actual: k === hoy,
+    }))
   }, [pendientesTodas])
 
   const pendientes = useMemo(() => pendientesTodas
-    .filter(r => !mes || r.fechaEfectiva.slice(0, 7) === mes), [pendientesTodas, mes])
+    .filter(r => sel.length === 0 || sel.includes(r.fechaEfectiva.slice(0, 7))), [pendientesTodas, sel])
+
+  const alternar = valor => setSel(s => s.includes(valor) ? s.filter(v => v !== valor) : [...s, valor].sort())
+  const todos = sel.length === meses.length && meses.length > 0
 
   async function generarCuadro() {
     setGenerando(true)
     try {
-      await exportarCuadroAlmacen(mes || claveMes(0))
+      await exportarCuadroAlmacen(sel)
     } catch (err) {
       alert('No se pudo generar el cuadro: ' + err.message)
     } finally {
@@ -39,18 +49,32 @@ export default function ComunicarAlmacen({ rows, onClose }) {
         </div>
         <div className="mdl-b">
           <div className="hint" style={{ marginBottom: 14 }}>
-            Entregas pendientes de ingresar. Elige un mes y genera el Cuadro Almacen para enviarlo.
+            Entregas pendientes de ingresar. Marca uno o varios meses y genera el Cuadro Almacen para enviarlo (una hoja por mes).
+          </div>
+
+          <div className="mes-chips">
+            <button className={'mes-chip' + (todos ? ' on' : '')}
+              onClick={() => setSel(todos ? [] : meses.map(m => m.valor))}>
+              {todos ? 'Quitar todos' : 'Marcar todos'}
+            </button>
+            {meses.map(m => (
+              <button key={m.valor}
+                className={'mes-chip' + (sel.includes(m.valor) ? ' on' : '') + (m.pasado ? ' pasado' : '')}
+                onClick={() => alternar(m.valor)}
+                title={m.pasado ? 'Mes ya pasado: entregas atrasadas' : m.actual ? 'Mes actual' : ''}>
+                {m.etiqueta}{m.actual ? ' (actual)' : ''}
+                <span className="mes-n">{m.cantidad}</span>
+              </button>
+            ))}
           </div>
 
           <div className="mdl-ctrl">
-            <select value={mes} onChange={e => setMes(e.target.value)}>
-              <option value="">Todos los meses</option>
-              {meses.map(m => <option key={m.valor} value={m.valor}>{m.etiqueta}</option>)}
-            </select>
-            <button className="btn act" onClick={generarCuadro} disabled={!mes || generando} title={!mes ? 'Elige un mes primero' : ''}>
+            <button className="btn act" onClick={generarCuadro} disabled={sel.length === 0 || generando} title={sel.length === 0 ? 'Marca al menos un mes' : ''}>
               {generando ? 'Generando...' : 'Generar Cuadro Almacen'}
             </button>
-            <span className="count">{pendientes.length} pendientes</span>
+            <span className="count">
+              {pendientes.length} pendientes{sel.length === 0 ? ' (todos los meses)' : ` en ${sel.length} ${sel.length === 1 ? 'mes' : 'meses'}`}
+            </span>
           </div>
 
           {pendientes.length === 0 ? (
