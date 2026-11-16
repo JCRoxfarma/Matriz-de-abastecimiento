@@ -1,10 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fmt, fdate, nombreMes } from './lib/derive'
 import { exportarCuadroAlmacen, claveMes } from './lib/exportarAlmacen'
 
 export default function ComunicarAlmacen({ rows, onClose }) {
   const [sel, setSel] = useState([])
   const [generando, setGenerando] = useState(false)
+  const [abierto, setAbierto] = useState(false)
+  const caja = useRef(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = e => { if (caja.current && !caja.current.contains(e.target)) setAbierto(false) }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [abierto])
 
   const pendientesTodas = useMemo(() => rows
     .filter(r => (r.fecha_confirmada || r.fecha_programada_ingreso) && r.abierto)
@@ -49,26 +58,34 @@ export default function ComunicarAlmacen({ rows, onClose }) {
         </div>
         <div className="mdl-b">
           <div className="hint" style={{ marginBottom: 14 }}>
-            Entregas pendientes de ingresar. Marca uno o varios meses y genera el Cuadro Almacen para enviarlo (una hoja por mes).
-          </div>
-
-          <div className="mes-chips">
-            <button className={'mes-chip' + (todos ? ' on' : '')}
-              onClick={() => setSel(todos ? [] : meses.map(m => m.valor))}>
-              {todos ? 'Quitar todos' : 'Marcar todos'}
-            </button>
-            {meses.map(m => (
-              <button key={m.valor}
-                className={'mes-chip' + (sel.includes(m.valor) ? ' on' : '') + (m.pasado ? ' pasado' : '')}
-                onClick={() => alternar(m.valor)}
-                title={m.pasado ? 'Mes ya pasado: entregas atrasadas' : m.actual ? 'Mes actual' : ''}>
-                {m.etiqueta}{m.actual ? ' (actual)' : ''}
-                <span className="mes-n">{m.cantidad}</span>
-              </button>
-            ))}
+            Entregas pendientes de ingresar. Elige uno o varios meses y genera el Cuadro Almacen para enviarlo (una hoja por mes).
           </div>
 
           <div className="mdl-ctrl">
+            <div className="mes-dd" ref={caja}>
+              <button className="mes-dd-btn" onClick={() => setAbierto(a => !a)}>
+                <span>{sel.length === 0 ? 'Todos los meses'
+                  : sel.length === 1 ? nombreMes(sel[0])
+                  : `${sel.length} meses seleccionados`}</span>
+                <span className="mes-dd-car">▾</span>
+              </button>
+              {abierto && (
+                <div className="mes-dd-menu">
+                  <label className="mes-dd-op mes-dd-todos">
+                    <input type="checkbox" checked={todos}
+                      onChange={() => setSel(todos ? [] : meses.map(m => m.valor))} />
+                    <span>Seleccionar todos</span>
+                  </label>
+                  {meses.map(m => (
+                    <label key={m.valor} className="mes-dd-op">
+                      <input type="checkbox" checked={sel.includes(m.valor)} onChange={() => alternar(m.valor)} />
+                      <span className={m.pasado ? 'mes-pasado' : ''}>{m.etiqueta}{m.actual ? ' (actual)' : ''}</span>
+                      <span className="mes-dd-n">{m.cantidad}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="btn act" onClick={generarCuadro} disabled={sel.length === 0 || generando} title={sel.length === 0 ? 'Marca al menos un mes' : ''}>
               {generando ? 'Generando...' : 'Generar Cuadro Almacen'}
             </button>
