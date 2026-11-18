@@ -240,7 +240,9 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
     `numero_analisis` = `<N° ingreso>-<código>` (ej. 26P0205277-110101006),
     estado 'Espera'. "Devolución al Proveedor" (Delphos) = rechazo: el
     ingreso devuelto (misma OC, código y cantidad) pasa a 'Rechazado'.
-    Una tarea diaria de Claude lee los correos y los carga; la app, al
+    Una tarea diaria de Claude (la crea Johany en claude.ai con los
+    conectores Microsoft 365 y Supabase; instrucción en
+    `docs/tarea-ingresos-pt.md`) lee los correos y los carga; la app, al
     abrirla un editor, reparte los ingresos nuevos de PT en sus entregas
     (`sincronizarIngresosPT` en `importer.js`). Ej.: OC 2600001320 E01,
     2,366 de 2,500, cerrada dentro de tolerancia el 18/11.
