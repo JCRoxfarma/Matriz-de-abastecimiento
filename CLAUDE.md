@@ -210,8 +210,13 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
   ingresos, de explosión y de **stock** (otro stock, distinto al de material
   de empaque). Falta que envíe los tres para ver su formato antes de armar
   la carga (cada uno con su historial, sin cruzarse con los de ME).
-  - **Stock PT vigente = suma de los almacenes P01 + P02 + P19** (los demás
-    almacenes no cuentan). Falta el archivo de stock PT.
+  - **Stock PT vigente = suma de los almacenes P01 + P02 + P19** (P01
+    disponible, P02 cuarentena, P19 contingencia; los demás no cuentan). Sale
+    del **mismo archivo de stock** que ya se sube para ME (columnas
+    alm_codigo, art_codigo, art_nombre, stock; trae todos los almacenes: E =
+    empaque, M = materia prima, P = producto terminado). Al 18/11/2026: 64
+    artículos PT. Propuesta pendiente de OK: que el mismo botón de stock
+    guarde también el stock PT por separado.
   - **Ingresos PT:** Johany no tiene el archivo, pero recibe los correos de
     Delphos (delphos@roxfarma.com) "INGRESO ALMACEN APT PRINCIPAL MERCAD.-
     CUARENTENA NRO: 26P… Fecha: dd/mm/aaaa": traen N° de ingreso (llave),
