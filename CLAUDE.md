@@ -143,16 +143,27 @@ de importaciones) (`app/src/lib/importer.js`), y:
   sentido (base de datos → Excel): el archivo de Johany no se actualiza
   solo, porque vive en su computadora y no en la nube.
 
-## Categorías: material de empaque y producto terminado (noviembre 2026)
+## Dos espacios: material de empaque y producto terminado (noviembre 2026)
 
-Johany ve dos categorías. El Excel no trae el tipo, así que la categoría se
-calcula por el proveedor (`categoriaDe` en `app/src/lib/derive.js`): CIFARMA
-y GABBLAN son **Producto terminado**; todo lo demás es **Material de
-empaque**. El selector Todos / Material de empaque / Producto terminado (a la
-derecha de las pestañas, se recuerda en el navegador) filtra Seguimiento OC,
-Seguimiento OI, Indicadores y los correos. No toca la base de datos ni la
-explosión de materiales. Si se agrega otro proveedor de producto terminado,
-se suma a `PROV_PT`.
+Johany pidió que sean como dos "ventanas" separadas, cada una con su data y
+seguimiento, sin cruzarse. Arriba, en el encabezado, el interruptor
+**Material de empaque | Producto terminado** (`espacio` ME/PT en `App.jsx`,
+se recuerda en el navegador). No hay vista "Todos". Cada espacio cambia el
+título, el color (ME azul, PT verde azulado vía `.wrap[data-espacio=PT]`) y
+sus pestañas:
+
+- ME: Seguimiento OC, Seguimiento OI, Explosión de materiales, Indicadores,
+  Archivos.
+- PT: Seguimiento OC, Seguimiento OI, **Stock PT** (`StockPT.jsx`),
+  Indicadores, Archivos (tarjetas propias de PT). La explosión de PT queda
+  pendiente hasta tener su archivo.
+
+La categoría de cada línea se calcula por el proveedor (`categoriaDe` en
+`app/src/lib/derive.js`): CIFARMA y GABBLAN son **Producto terminado**; todo
+lo demás es **Material de empaque**. Seguimiento OC/OI, Indicadores (también
+sus OI) y los correos solo ven las líneas de su espacio. El Excel de OC
+programadas y el reporte de stock son los mismos para los dos (la app
+separa). Si se agrega otro proveedor de PT, se suma a `PROV_PT`.
 
 ## Indicadores (noviembre 2026)
 
@@ -204,8 +215,7 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
 
 ## Pendientes conversados (noviembre 2026)
 
-- Espacio separado para producto terminado (otra "ventana", sin cruce con
-  material de empaque): Johany estaba conforme con la idea. PT comparte
+- Producto terminado (el espacio separado ya existe, 18/11/2026). PT comparte
   solo el Excel de OC programadas; tiene **sus propios** archivos de
   ingresos, de explosión y de **stock** (otro stock, distinto al de material
   de empaque). Falta que envíe los tres para ver su formato antes de armar
