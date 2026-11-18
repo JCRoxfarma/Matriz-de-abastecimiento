@@ -205,8 +205,11 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
 ## Pendientes conversados (noviembre 2026)
 
 - Espacio separado para producto terminado (otra "ventana", sin cruce con
-  material de empaque): Johany estaba conforme con la idea; falta que envíe
-  el archivo de ingresos de PT y el de explosión de PT para ver su formato.
+  material de empaque): Johany estaba conforme con la idea. PT comparte
+  solo el Excel de OC programadas; tiene **sus propios** archivos de
+  ingresos, de explosión y de **stock** (otro stock, distinto al de material
+  de empaque). Falta que envíe los tres para ver su formato antes de armar
+  la carga (cada uno con su historial, sin cruzarse con los de ME).
 - Sección "Gasto por proveedor" en Indicadores (Pareto, gasto vs OTIF,
   subidas de precio, proveedor único) y/o informe de estrategias: se
   propuso, falta que elija.
