@@ -215,8 +215,10 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
     del **mismo archivo de stock** que ya se sube para ME (columnas
     alm_codigo, art_codigo, art_nombre, stock; trae todos los almacenes: E =
     empaque, M = materia prima, P = producto terminado). Al 18/11/2026: 64
-    artículos PT. Propuesta pendiente de OK: que el mismo botón de stock
-    guarde también el stock PT por separado.
+    artículos PT. **Hecho (18/11/2026, con OK de Johany):** el mismo botón
+    Actualizar stock guarda también el stock PT en la tabla `stock_pt`
+    (`supabase/stock_pt.sql`, `importarStock` / `obtenerStockPT` en
+    `lib/stockImporter.js`); el panel de una OC de PT lo muestra.
   - **Ingresos PT:** Johany no tiene el archivo, pero recibe los correos de
     Delphos (delphos@roxfarma.com) "INGRESO ALMACEN APT PRINCIPAL MERCAD.-
     CUARENTENA NRO: 26P… Fecha: dd/mm/aaaa": traen N° de ingreso (llave),

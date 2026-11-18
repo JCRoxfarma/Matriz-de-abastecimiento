@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { fmt, fmtM, fdate, days, SEM, CERRADAS, gestOpts, separarMotivo, unirMotivo } from './lib/derive'
 import MotivoDemora from './MotivoDemora'
 import LeadTimeEntrega from './LeadTimeEntrega'
 import RechazoCalidad from './RechazoCalidad'
 import { recalcularEntregasDe } from './lib/importer'
+import { obtenerStockPT } from './lib/stockImporter'
+import { categoriaDe } from './lib/derive'
 
 export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, onSavedOtra }) {
   const opcionesGestion = gestOpts(row)
@@ -24,6 +26,15 @@ export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, 
     .sort((a, b) => (b.orden_entrega || 0) - (a.orden_entrega || 0))[0]
   const esUltima = !ultima || (ultima.orden_entrega || 0) < (row.orden_entrega || 0)
   const [compensar, setCompensar] = useState(true)
+  // Producto terminado: stock vigente P01 + P02 + P19 del ultimo reporte.
+  const esPT = categoriaDe(row) === 'Producto terminado'
+  const [stockPT, setStockPT] = useState(null)
+  useEffect(() => {
+    if (!esPT) return
+    let vivo = true
+    obtenerStockPT().then(r => { if (vivo) setStockPT(r ? { ...(r.mapa.get(String(row.sku)) || {}), fecha: r.fecha, hay: r.mapa.has(String(row.sku)) } : { sinCarga: true }) })
+    return () => { vivo = false }
+  }, [esPT, row.sku])
   const delta = (Number(ajuste) || 0) - (row.ajuste_cantidad || 0)
   // Si esta entrega aumenta, de la ultima solo se puede descontar lo que
   // aun no llego; si no alcanza, el resto aumenta el total de la OC (por
@@ -138,6 +149,19 @@ export default function Panel({ row, hermanas = [], esEditor, onClose, onSaved, 
             <div className="kv"><span>Semana de ingreso</span><b>SEM {row.semana_ingreso || ''}</b></div>
             <div className="kv"><span>Almacen destino</span><b>{row.almacen_destino || 'sin definir'}</b></div>
           </div>
+
+          {esPT && stockPT && (
+            <div className="sec">
+              <h3>Stock de producto terminado</h3>
+              {stockPT.sinCarga ? <div className="hint">Aún no se ha subido un reporte de stock con producto terminado.</div>
+                : !stockPT.hay ? <div className="hint">Sin stock en P01, P02 ni P19 en el reporte del {fdate(stockPT.fecha)}.</div>
+                : <>
+                  <div className="kv"><span>Stock vigente (P01 + P02 + P19)</span><b>{fmt(stockPT.stock_total)} {stockPT.unidad || ''}</b></div>
+                  <div className="kv"><span>P01 disponible · P02 cuarentena · P19 contingencia</span><b>{fmt(stockPT.stock_p01)} · {fmt(stockPT.stock_p02)} · {fmt(stockPT.stock_p19)}</b></div>
+                  <div className="hint">Reporte de stock del {fdate(stockPT.fecha)}.</div>
+                </>}
+            </div>
+          )}
 
           <RechazoCalidad row={row} esEditor={esEditor} onGuardado={p => onSaved(p)} />
 
