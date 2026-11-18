@@ -68,29 +68,18 @@ export default function Archivos({ esEditor, espacio = 'ME', onImportado }) {
       {espacio === 'PT' ? (
         <>
           <div className="arch-grid">
-            <TarjetaArchivo u={ultimo('programacion')} esEditor={esEditor} titulo="Órdenes de compra programadas (archivo compartido)" boton={<ImportButton onDone={despuesDeImportar} />} />
             <div className="arch-card">
               <div className="arch-ico"><Icono nombre="capas" tam={26} /></div>
               <div className="arch-info">
                 <h3>Stock de producto terminado</h3>
-                <div className="arch-arch">Mismo reporte de stock de siempre · se toma P01 + P02 + P19</div>
+                <div className="arch-arch">Reporte de stock del sistema · se toma P01 + P02 + P19</div>
                 {infoPT?.stock ? <div className="arch-fecha">Reporte del {fdate(infoPT.stock.fecha)} · {infoPT.stock.mapa.size} productos</div> : <div className="dim">Todavía no se ha subido</div>}
                 {esEditor && <div className="arch-btn"><StockButton onDone={() => { cargarPT(); onImportado?.() }} /></div>}
               </div>
             </div>
-            <div className="arch-card">
-              <div className="arch-ico"><Icono nombre="campana" tam={26} /></div>
-              <div className="arch-info">
-                <h3>Ingresos de producto terminado</h3>
-                <div className="arch-arch">Se cargan desde los correos de Delphos "INGRESO ALMACEN APT…"</div>
-                {infoPT && (infoPT.ingresos > 0
-                  ? <div className="arch-fecha">{fmt(infoPT.ingresos)} ingresos cargados · último del {fdate(infoPT.ultimoIngreso)}</div>
-                  : <div className="dim">Aún no se han cargado ingresos de PT</div>)}
-              </div>
-            </div>
           </div>
           <div className="pct" style={{ margin: '8px 2px 18px', whiteSpace: 'normal' }}>
-            El Excel de órdenes de compra es el mismo para los dos espacios: la app separa solo las líneas de producto terminado (Cifarma, Gabblan). El reporte de stock también es el mismo: subirlo aquí o en material de empaque actualiza los dos.
+            Los ingresos de producto terminado no se suben: se leen de los correos de Delphos.
           </div>
         </>
       ) : (
