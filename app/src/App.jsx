@@ -10,6 +10,7 @@ import Archivos from './Archivos'
 import Icono from './Icono'
 import RangoFechas from './RangoFechas'
 import StockPT from './StockPT'
+import { sincronizarIngresosPT } from './lib/importer'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
 import Indicadores from './Indicadores'
@@ -95,7 +96,15 @@ export default function App() {
     setLoading(true)
     setErr(null)
     try {
-      const data = await fetchAll('programacion_oc', '*')
+      let data = await fetchAll('programacion_oc', '*')
+      // Producto terminado: los ingresos llegan desde los correos de Delphos
+      // (una tarea diaria los carga en ingresos_sistema), no desde un Excel.
+      // Si hay ingresos nuevos que aun no se repartieron en sus entregas, se
+      // reparten aqui (mismo calculo que al importar). Solo PT y solo editor.
+      if (perfil?.rol === 'editor') {
+        const recalculadas = await sincronizarIngresosPT(data).catch(() => 0)
+        if (recalculadas) data = await fetchAll('programacion_oc', '*')
+      }
       setRows(withEntregas(data.map(enrich)))
     } catch (e) {
       setErr(e.message)

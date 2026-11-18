@@ -420,3 +420,34 @@ export async function recalcularEntregasDe(oc, sku) {
   await upsertInBatches('programacion_oc', cambios, 'id_entrega')
   return cambios
 }
+
+// Producto terminado: sus ingresos se cargan desde los correos de Delphos
+// (numero 26P...). Compara, por OC + SKU de PT, lo ingresado que ya tienen
+// las entregas contra los ingresos guardados; donde no cuadra, vuelve a
+// repartir. Devuelve cuantos grupos recalculo.
+const PROV_PT = /cifarma|gab+lan/i
+export async function sincronizarIngresosPT(filasProgramacion) {
+  const pt = filasProgramacion.filter(r => PROV_PT.test(r.proveedor || ''))
+  if (!pt.length) return 0
+  const ocs = [...new Set(pt.map(r => r.oc))]
+  const eventos = await fetchAll('ingresos_sistema', 'oc,codigo,cantidad_ingresada,estado_ingreso_sistema', q => q.in('oc', ocs))
+  const ingresado = new Map()
+  for (const ev of eventos) {
+    if (esRechazado(ev)) continue
+    const k = `${ev.oc}|${ev.codigo}`
+    ingresado.set(k, (ingresado.get(k) || 0) + (ev.cantidad_ingresada || 0))
+  }
+  const enEntregas = new Map()
+  for (const r of pt) {
+    const k = `${r.oc}|${r.sku}`
+    enEntregas.set(k, (enEntregas.get(k) || 0) + (r.cant_ingresada || 0))
+  }
+  let n = 0
+  for (const [k, total] of ingresado) {
+    if (!enEntregas.has(k) || Math.abs((enEntregas.get(k) || 0) - total) < 0.001) continue
+    const [oc, sku] = k.split('|')
+    await recalcularEntregasDe(Number(oc), sku)
+    n++
+  }
+  return n
+}

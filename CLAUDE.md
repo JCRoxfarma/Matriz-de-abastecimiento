@@ -233,9 +233,17 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
     Delphos (delphos@roxfarma.com) "INGRESO ALMACEN APT PRINCIPAL MERCAD.-
     CUARENTENA NRO: 26P… Fecha: dd/mm/aaaa": traen N° de ingreso (llave),
     fecha, OC, proveedor y una tabla Código / Artículo / Cantidad / Und.
-    Medida / Lote. Se pueden leer con el conector de Microsoft 365. Propuesta
-    (pendiente de su OK): cargar el historial desde esos correos y una tarea
-    diaria que cargue los nuevos.
+    Medida / Lote. **Regla de Johany (18/11/2026):** el Excel dice lo
+    programado (solo lo vigente) y el correo dice lo que ingresó; los
+    ingresos anteriores al 17/11/2026 (inicio del seguimiento de PT en la
+    app) no cuentan. Se cargan en `ingresos_sistema` con
+    `numero_analisis` = `<N° ingreso>-<código>` (ej. 26P0205277-110101006),
+    estado 'Espera'. "Devolución al Proveedor" (Delphos) = rechazo: el
+    ingreso devuelto (misma OC, código y cantidad) pasa a 'Rechazado'.
+    Una tarea diaria de Claude lee los correos y los carga; la app, al
+    abrirla un editor, reparte los ingresos nuevos de PT en sus entregas
+    (`sincronizarIngresosPT` en `importer.js`). Ej.: OC 2600001320 E01,
+    2,366 de 2,500, cerrada dentro de tolerancia el 18/11.
 - Sección "Gasto por proveedor" en Indicadores (Pareto, gasto vs OTIF,
   subidas de precio, proveedor único) y/o informe de estrategias: se
   propuso, falta que elija.
