@@ -210,6 +210,15 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
   ingresos, de explosión y de **stock** (otro stock, distinto al de material
   de empaque). Falta que envíe los tres para ver su formato antes de armar
   la carga (cada uno con su historial, sin cruzarse con los de ME).
+  - **Stock PT vigente = suma de los almacenes P01 + P02 + P19** (los demás
+    almacenes no cuentan). Falta el archivo de stock PT.
+  - **Ingresos PT:** Johany no tiene el archivo, pero recibe los correos de
+    Delphos (delphos@roxfarma.com) "INGRESO ALMACEN APT PRINCIPAL MERCAD.-
+    CUARENTENA NRO: 26P… Fecha: dd/mm/aaaa": traen N° de ingreso (llave),
+    fecha, OC, proveedor y una tabla Código / Artículo / Cantidad / Und.
+    Medida / Lote. Se pueden leer con el conector de Microsoft 365. Propuesta
+    (pendiente de su OK): cargar el historial desde esos correos y una tarea
+    diaria que cargue los nuevos.
 - Sección "Gasto por proveedor" en Indicadores (Pareto, gasto vs OTIF,
   subidas de precio, proveedor único) y/o informe de estrategias: se
   propuso, falta que elija.
