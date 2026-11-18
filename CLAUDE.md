@@ -155,8 +155,17 @@ sus pestañas:
 - ME: Seguimiento OC, Seguimiento OI, Explosión de materiales, Indicadores,
   Archivos.
 - PT: Seguimiento OC, Seguimiento OI, **Stock PT** (`StockPT.jsx`),
-  Indicadores, Archivos (tarjetas propias de PT). La explosión de PT queda
-  pendiente hasta tener su archivo.
+  **Cobertura PT** (`CoberturaPT.jsx`), Indicadores, Archivos (solo stock PT
+  y plan de ventas; los ingresos de PT se leen de los correos).
+- **Cobertura PT** (18/11/2026): demanda = plan de ventas de la hoja DATOS
+  del Excel "Cobertura_Maquila" de Johany (tabla `demanda_pt`,
+  `supabase/demanda_pt.sql`, `lib/demandaPT.js`; de esa hoja solo se toman
+  plan de ventas, lote, proveedor, lead time y venta real; su columna de
+  stock NO se usa). Stock vigente = `stock_pt` (P01 + P02 + P19). Por
+  producto: cobertura en meses, OC de PT en camino, mes/fecha de quiebre,
+  pedir antes de = quiebre − lead time, sugerido = lotes completos hasta 2
+  meses después del quiebre; estado Pedido tardío / Pedir ya (30 días) /
+  Con tiempo / Cubierto; venta real vs plan.
 
 La categoría de cada línea se calcula por el proveedor (`categoriaDe` en
 `app/src/lib/derive.js`): CIFARMA y GABBLAN son **Producto terminado**; todo

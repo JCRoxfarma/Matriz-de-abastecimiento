@@ -624,3 +624,5 @@ a.btn-sm{text-decoration:none;display:inline-flex;align-items:center}
 @media (max-width:900px){.espacio-sel{width:100%}.espacio-sel button{flex:1;justify-content:center}}
 .enc{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center}
 @media (max-width:1100px){.enc{grid-template-columns:1fr}.enc-der{align-items:flex-start}}
+.cob-det{display:flex;flex-direction:column;gap:10px;padding:6px 4px 10px;font-size:12.5px;color:var(--ink2)}
+.cob-meses td,.cob-meses th{white-space:nowrap}

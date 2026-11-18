@@ -10,6 +10,7 @@ import Archivos from './Archivos'
 import Icono from './Icono'
 import RangoFechas from './RangoFechas'
 import StockPT from './StockPT'
+import CoberturaPT from './CoberturaPT'
 import { sincronizarIngresosPT } from './lib/importer'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
@@ -64,7 +65,7 @@ export default function App() {
   // La pestana abierta se guarda en la direccion (#oi, #indicadores...), asi
   // al actualizar la pagina (F5) se queda en la misma pestana, y el boton
   // Atras del navegador vuelve a la pestana anterior.
-  const VISTAS = ['oc', 'oi', 'explosion', 'stockpt', 'indicadores', 'archivos']
+  const VISTAS = ['oc', 'oi', 'explosion', 'stockpt', 'cobpt', 'indicadores', 'archivos']
   const vistaDeUrl = () => { const h = window.location.hash.slice(1); return VISTAS.includes(h) ? h : 'oc' }
   const [vista, setVistaSt] = useState(vistaDeUrl)
   const setVista = v => { setVistaSt(v); if (window.location.hash.slice(1) !== v) window.location.hash = v }
@@ -139,7 +140,7 @@ export default function App() {
   const [espacio, setEspacioSt] = useState(() => { try { return localStorage.getItem('espacio') === 'PT' ? 'PT' : 'ME' } catch { return 'ME' } })
   const categoria = espacio === 'PT' ? 'Producto terminado' : 'Material de empaque'
   const PESTANAS = espacio === 'PT'
-    ? [['oc', 'Seguimiento OC', 'caja'], ['oi', 'Seguimiento OI', 'portapapeles'], ['stockpt', 'Stock PT', 'capas'], ['indicadores', 'Indicadores', 'grafico'], ['archivos', 'Archivos', 'carpeta']]
+    ? [['oc', 'Seguimiento OC', 'caja'], ['oi', 'Seguimiento OI', 'portapapeles'], ['stockpt', 'Stock PT', 'capas'], ['cobpt', 'Cobertura PT', 'calendario'], ['indicadores', 'Indicadores', 'grafico'], ['archivos', 'Archivos', 'carpeta']]
     : [['oc', 'Seguimiento OC', 'caja'], ['oi', 'Seguimiento OI', 'portapapeles'], ['explosion', 'Explosión de materiales', 'capas'], ['indicadores', 'Indicadores', 'grafico'], ['archivos', 'Archivos', 'carpeta']]
   const vistaOk = PESTANAS.some(t => t[0] === vista) ? vista : 'oc'
   const setEspacio = e => {
@@ -343,7 +344,7 @@ export default function App() {
         ))}
       </nav>
 
-      {vistaOk === 'oi' ? <SeguimientoOI key={espacio} categoria={categoria} /> : vistaOk === 'explosion' ? <Explosion esEditor={esEditor} /> : vistaOk === 'stockpt' ? <StockPT rows={rowsCat} /> : vistaOk === 'indicadores' ? <Indicadores key={espacio} rows={rowsCat} categoria={categoria} /> : vistaOk === 'archivos' ? <Archivos esEditor={esEditor} espacio={espacio} onImportado={cargar} /> : <>
+      {vistaOk === 'oi' ? <SeguimientoOI key={espacio} categoria={categoria} /> : vistaOk === 'explosion' ? <Explosion esEditor={esEditor} /> : vistaOk === 'stockpt' ? <StockPT rows={rowsCat} /> : vistaOk === 'cobpt' ? <CoberturaPT rows={rowsCat} /> : vistaOk === 'indicadores' ? <Indicadores key={espacio} rows={rowsCat} categoria={categoria} /> : vistaOk === 'archivos' ? <Archivos esEditor={esEditor} espacio={espacio} onImportado={cargar} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>
