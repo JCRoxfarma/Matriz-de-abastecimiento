@@ -3,6 +3,9 @@ import { supabase } from './supabaseClient'
 import { insertInBatches } from './importer'
 
 const ALMACENES = ['E01', 'E02', 'E24']
+// Producto terminado (nov-2026, Johany): del mismo reporte, el stock
+// vigente de PT es P01 (disponible) + P02 (cuarentena) + P19 (contingencia).
+const ALMACENES_PT = ['P01', 'P02', 'P19']
 
 function fechaDesdeTexto(texto) {
   const m = String(texto || '').match(/(\d{1,2})\.(\d{1,2})/)
@@ -26,6 +29,7 @@ export async function importarStock(file, onStep) {
   const iDescripcion = header.indexOf('art_nombre')
   const iStock = header.indexOf('stock')
   const iVersion = header.indexOf('version')
+  const iUnidad = header.indexOf('ume_abrv')
 
   if (iAlm === -1 || iCodigo === -1 || iStock === -1) {
     throw new Error('No se encontraron las columnas esperadas (alm_codigo, art_codigo, stock). ¿Es el archivo correcto?')
@@ -33,9 +37,28 @@ export async function importarStock(file, onStep) {
 
   onStep?.('Procesando stock por almacén...')
   const porCodigo = new Map()
+  const porCodigoPT = new Map()
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i]
     const alm = String(row[iAlm] || '').trim()
+    if (ALMACENES_PT.includes(alm)) {
+      const codigo = String(row[iCodigo] || '').trim()
+      if (codigo) {
+        if (!porCodigoPT.has(codigo)) {
+          porCodigoPT.set(codigo, {
+            codigo,
+            descripcion: iDescripcion >= 0 && row[iDescripcion] != null ? String(row[iDescripcion]).trim() : null,
+            unidad: iUnidad >= 0 && row[iUnidad] != null ? String(row[iUnidad]).trim() : null,
+            stock_p01: 0, stock_p02: 0, stock_p19: 0, stock_total: 0,
+          })
+        }
+        const pt = porCodigoPT.get(codigo)
+        const stock = Number(row[iStock]) || 0
+        pt['stock_' + alm.toLowerCase()] += stock
+        pt.stock_total += stock
+      }
+      continue
+    }
     if (!ALMACENES.includes(alm)) continue
     const codigo = String(row[iCodigo] || '').trim()
     if (!codigo) continue
@@ -78,7 +101,32 @@ export async function importarStock(file, onStep) {
 
   await insertInBatches('stock_diario', filas)
 
-  return { materiales: porCodigo.size, fecha: fechaStock }
+  // Stock de producto terminado, en su propia tabla. Si fallara, no se
+  // pierde la carga de material de empaque (ya guardada arriba).
+  let productosPT = 0
+  let errorPT = null
+  if (porCodigoPT.size > 0) {
+    try {
+      const { error: errDelPT } = await supabase.from('stock_pt').delete().gt('id', 0)
+      if (errDelPT) throw errDelPT
+      await insertInBatches('stock_pt', [...porCodigoPT.values()].map(e => ({ ...e, fecha_stock: fechaStock })))
+      productosPT = porCodigoPT.size
+    } catch (e) { errorPT = e.message || String(e) }
+  }
+
+  return { materiales: porCodigo.size, fecha: fechaStock, productosPT, errorPT }
+}
+
+// Stock vigente de producto terminado (P01 + P02 + P19) por codigo.
+export async function obtenerStockPT() {
+  try {
+    const { data, error } = await supabase.from('stock_pt')
+      .select('codigo,descripcion,unidad,stock_p01,stock_p02,stock_p19,stock_total,fecha_stock')
+    if (error || !data || data.length === 0) return null
+    return { mapa: new Map(data.map(r => [r.codigo, r])), fecha: data[0].fecha_stock }
+  } catch {
+    return null
+  }
 }
 
 export async function obtenerStockDiario() {

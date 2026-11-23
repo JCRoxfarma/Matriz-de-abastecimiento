@@ -150,16 +150,36 @@ de importaciones) (`app/src/lib/importer.js`), y:
   sentido (base de datos → Excel): el archivo de Johany no se actualiza
   solo, porque vive en su computadora y no en la nube.
 
-## Categorías: material de empaque y producto terminado (noviembre 2026)
+## Dos espacios: material de empaque y producto terminado (noviembre 2026)
 
-Johany ve dos categorías. El Excel no trae el tipo, así que la categoría se
-calcula por el proveedor (`categoriaDe` en `app/src/lib/derive.js`): CIFARMA
-y GABBLAN son **Producto terminado**; todo lo demás es **Material de
-empaque**. El selector Todos / Material de empaque / Producto terminado (a la
-derecha de las pestañas, se recuerda en el navegador) filtra Seguimiento OC,
-Seguimiento OI, Indicadores y los correos. No toca la base de datos ni la
-explosión de materiales. Si se agrega otro proveedor de producto terminado,
-se suma a `PROV_PT`.
+Johany pidió que sean como dos "ventanas" separadas, cada una con su data y
+seguimiento, sin cruzarse. Arriba, en el encabezado, el interruptor
+**Material de empaque | Producto terminado** (`espacio` ME/PT en `App.jsx`,
+se recuerda en el navegador). No hay vista "Todos". Cada espacio cambia el
+título, el color (ME azul, PT verde azulado vía `.wrap[data-espacio=PT]`) y
+sus pestañas:
+
+- ME: Seguimiento OC, Seguimiento OI, Explosión de materiales, Indicadores,
+  Archivos.
+- PT: Seguimiento OC, Seguimiento OI, **Stock PT** (`StockPT.jsx`),
+  **Cobertura PT** (`CoberturaPT.jsx`), Indicadores, Archivos (solo stock PT
+  y plan de ventas; los ingresos de PT se leen de los correos).
+- **Cobertura PT** (18/11/2026): demanda = plan de ventas de la hoja DATOS
+  del Excel "Cobertura_Maquila" de Johany (tabla `demanda_pt`,
+  `supabase/demanda_pt.sql`, `lib/demandaPT.js`; de esa hoja solo se toman
+  plan de ventas, lote, proveedor, lead time y venta real; su columna de
+  stock NO se usa). Stock vigente = `stock_pt` (P01 + P02 + P19). Por
+  producto: cobertura en meses, OC de PT en camino, mes/fecha de quiebre,
+  pedir antes de = quiebre − lead time, sugerido = lotes completos hasta 2
+  meses después del quiebre; estado Pedido tardío / Pedir ya (30 días) /
+  Con tiempo / Cubierto; venta real vs plan.
+
+La categoría de cada línea se calcula por el proveedor (`categoriaDe` en
+`app/src/lib/derive.js`): CIFARMA y GABBLAN son **Producto terminado**; todo
+lo demás es **Material de empaque**. Seguimiento OC/OI, Indicadores (también
+sus OI) y los correos solo ven las líneas de su espacio. El Excel de OC
+programadas y el reporte de stock son los mismos para los dos (la app
+separa). Si se agrega otro proveedor de PT, se suma a `PROV_PT`.
 
 ## Indicadores (noviembre 2026)
 
@@ -211,9 +231,37 @@ desde Supabase Authentication → Users, y después se le agrega una fila en
 
 ## Pendientes conversados (noviembre 2026)
 
-- Espacio separado para producto terminado (otra "ventana", sin cruce con
-  material de empaque): Johany estaba conforme con la idea; falta que envíe
-  el archivo de ingresos de PT y el de explosión de PT para ver su formato.
+- Producto terminado (el espacio separado ya existe, 18/11/2026). PT comparte
+  solo el Excel de OC programadas; tiene **sus propios** archivos de
+  ingresos, de explosión y de **stock** (otro stock, distinto al de material
+  de empaque). Falta que envíe los tres para ver su formato antes de armar
+  la carga (cada uno con su historial, sin cruzarse con los de ME).
+  - **Stock PT vigente = suma de los almacenes P01 + P02 + P19** (P01
+    disponible, P02 cuarentena, P19 contingencia; los demás no cuentan). Sale
+    del **mismo archivo de stock** que ya se sube para ME (columnas
+    alm_codigo, art_codigo, art_nombre, stock; trae todos los almacenes: E =
+    empaque, M = materia prima, P = producto terminado). Al 18/11/2026: 64
+    artículos PT. **Hecho (18/11/2026, con OK de Johany):** el mismo botón
+    Actualizar stock guarda también el stock PT en la tabla `stock_pt`
+    (`supabase/stock_pt.sql`, `importarStock` / `obtenerStockPT` en
+    `lib/stockImporter.js`); el panel de una OC de PT lo muestra.
+  - **Ingresos PT:** Johany no tiene el archivo, pero recibe los correos de
+    Delphos (delphos@roxfarma.com) "INGRESO ALMACEN APT PRINCIPAL MERCAD.-
+    CUARENTENA NRO: 26P… Fecha: dd/mm/aaaa": traen N° de ingreso (llave),
+    fecha, OC, proveedor y una tabla Código / Artículo / Cantidad / Und.
+    Medida / Lote. **Regla de Johany (18/11/2026):** el Excel dice lo
+    programado (solo lo vigente) y el correo dice lo que ingresó; los
+    ingresos anteriores al 17/11/2026 (inicio del seguimiento de PT en la
+    app) no cuentan. Se cargan en `ingresos_sistema` con
+    `numero_analisis` = `<N° ingreso>-<código>` (ej. 26P0205277-110101006),
+    estado 'Espera'. "Devolución al Proveedor" (Delphos) = rechazo: el
+    ingreso devuelto (misma OC, código y cantidad) pasa a 'Rechazado'.
+    Una tarea diaria de Claude (la crea Johany en claude.ai con los
+    conectores Microsoft 365 y Supabase; instrucción en
+    `docs/tarea-ingresos-pt.md`) lee los correos y los carga; la app, al
+    abrirla un editor, reparte los ingresos nuevos de PT en sus entregas
+    (`sincronizarIngresosPT` en `importer.js`). Ej.: OC 2600001320 E01,
+    2,366 de 2,500, cerrada dentro de tolerancia el 18/11.
 - Sección "Gasto por proveedor" en Indicadores (Pareto, gasto vs OTIF,
   subidas de precio, proveedor único) y/o informe de estrategias: se
   propuso, falta que elija.

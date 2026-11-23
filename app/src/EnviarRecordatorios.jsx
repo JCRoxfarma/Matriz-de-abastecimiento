@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fmt } from './lib/derive'
 import {
   cargarContactos, guardarContacto, cargarHistorial, registrarEnvio,
@@ -46,7 +46,17 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
 
   const [contactos, setContactos] = useState([])
   const [historial, setHistorial] = useState([])
-  const [rango, setRango] = useState('todas')
+  // Meses elegidos (vacio = todas las pendientes). Mismo selector con
+  // casillas que Comunicar a almacen: se pueden marcar varios meses.
+  const [meses, setMeses] = useState([])
+  const [mesesAbierto, setMesesAbierto] = useState(false)
+  const cajaMeses = useRef(null)
+  useEffect(() => {
+    if (!mesesAbierto) return
+    const fuera = e => { if (cajaMeses.current && !cajaMeses.current.contains(e.target)) setMesesAbierto(false) }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [mesesAbierto])
   const [buscar, setBuscar] = useState('')
   const [editEmail, setEditEmail] = useState({})
   const [vistaPrevia, setVistaPrevia] = useState(null)
@@ -95,9 +105,9 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
 
   const porProveedor = useMemo(() => {
     const abiertas = rows.filter(r => r.abierto).filter(r => {
-      if (rango === 'todas') return true
+      if (meses.length === 0) return true
       const clave = fechaEfectiva(r)?.slice(0, 7)
-      return clave === rango
+      return meses.includes(clave)
     })
 
     const groups = new Map()
@@ -117,7 +127,7 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
         return { nombre, filas, contacto, atrasadas, ultimoEnvio }
       })
       .sort((a, b) => b.atrasadas - a.atrasadas || b.filas.length - a.filas.length)
-  }, [rows, contactos, historial, rango, buscar])
+  }, [rows, contactos, historial, meses, buscar])
 
   const conCorreo = porProveedor.filter(p => p.contacto?.correo)
 
@@ -374,12 +384,34 @@ export default function EnviarRecordatorios({ rows, esEditor, avisoOutlook, onCl
             </div>
           )}
           <div className="mdl-ctrl">
-            <select value={rango} onChange={e => setRango(e.target.value)}>
-              <option value="todas">Todas las pendientes</option>
-              {mesesDisponibles.map(m => (
-                <option key={m} value={m}>{nombreCorto(m)}</option>
-              ))}
-            </select>
+            <div className="mes-dd" ref={cajaMeses}>
+              <button className="mes-dd-btn" onClick={() => setMesesAbierto(a => !a)}>
+                <span>{meses.length === 0 ? 'Todas las pendientes'
+                  : meses.length === 1 ? nombreCorto(meses[0])
+                  : `${meses.length} meses seleccionados`}</span>
+                <span className="mes-dd-car">▾</span>
+              </button>
+              {mesesAbierto && (
+                <div className="mes-dd-menu">
+                  <label className="mes-dd-op mes-dd-todos">
+                    <input type="checkbox" checked={meses.length === 0}
+                      onChange={() => setMeses([])} />
+                    <span>Todas las pendientes</span>
+                  </label>
+                  {mesesDisponibles.map(m => {
+                    const n = rows.filter(r => r.abierto && fechaEfectiva(r)?.startsWith(m)).length
+                    return (
+                      <label key={m} className="mes-dd-op">
+                        <input type="checkbox" checked={meses.includes(m)}
+                          onChange={() => setMeses(sel => sel.includes(m) ? sel.filter(v => v !== m) : [...sel, m].sort())} />
+                        <span className={m < new Date().toISOString().slice(0, 7) ? 'mes-pasado' : ''}>{nombreCorto(m)}</span>
+                        <span className="mes-dd-n">{n}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
             <input
               type="text"
               placeholder="Buscar proveedor..."

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fmt, fdate } from './lib/derive'
+import { fmt, fdate, categoriaDe } from './lib/derive'
 import { fetchAll, esRechazado } from './lib/importer'
 import Icono from './Icono'
 import { exportarCumplimiento } from './lib/exportarCumplimiento'
@@ -300,7 +300,7 @@ function BarrasH({ filas, formato, maximo, colorDe }) {
 
 // ---------- Pantalla ----------
 
-export default function Indicadores({ rows }) {
+export default function Indicadores({ rows, categoria }) {
   const [base, setBase] = useState('original')
   // Exportar cumplimiento (OTIF) de un mes a Excel, para enviar al proveedor.
   const [expAbierto, setExpAbierto] = useState(false)
@@ -326,7 +326,8 @@ export default function Indicadores({ rows }) {
         setUltimaLlegada(m)
       })
       .catch(e => setErr(e.message))
-    cargarOI().then(setOi).catch(e => setErr(e.message))
+    // Solo las OI del espacio abierto (material de empaque o producto terminado).
+    cargarOI().then(d => setOi(categoria ? d.filter(r => categoriaDe(r) === categoria) : d)).catch(e => setErr(e.message))
     obtenerLeadTimes().then(setLeadTimes).catch(() => setLeadTimes(null))
   }, [])
 

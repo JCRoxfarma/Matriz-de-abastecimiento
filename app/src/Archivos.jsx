@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
+import { fmt, fdate } from './lib/derive'
 import Icono from './Icono'
 import ImportButton from './ImportButton'
 import ImportIngresosButton from './ImportIngresosButton'
 import { listarImportaciones } from './lib/importaciones'
+import StockButton from './StockButton'
+import DemandaPTButton from './DemandaPTButton'
+import { obtenerDemandaPT } from './lib/demandaPT'
+import { obtenerStockPT } from './lib/stockImporter'
+import { fetchAll } from './lib/importer'
 
 const fechaHora = s => new Date(s).toLocaleString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const TIPO = { programacion: 'OC programadas', ingresos: 'Ingresos reales' }
@@ -26,7 +32,7 @@ function TarjetaArchivo({ u, titulo, boton, esEditor }) {
 // de OC programadas e ingresos reales a almacen), cuando se subio cada uno
 // y el historial de importaciones. Los botones de importar viven aqui (antes
 // estaban en la barra de Seguimiento OC).
-export default function Archivos({ esEditor, onImportado }) {
+export default function Archivos({ esEditor, espacio = 'ME', onImportado }) {
   const [hist, setHist] = useState(null)
   const [err, setErr] = useState(null)
 
@@ -34,6 +40,22 @@ export default function Archivos({ esEditor, onImportado }) {
   useEffect(() => { cargar() }, [])
 
   const ultimo = tipo => hist?.find(h => h.tipo === tipo)
+
+  // Espacio Producto terminado: stock PT (P01+P02+P19) e ingresos PT, que
+  // llegan desde los correos de Delphos (numero de ingreso 26P...).
+  const [infoPT, setInfoPT] = useState(null)
+  const cargarPT = async () => {
+    const st = await obtenerStockPT().catch(() => null)
+    const dem = await obtenerDemandaPT().catch(() => [])
+    const ing = await fetchAll('ingresos_sistema', 'numero_analisis,fecha_ingreso', q => q.like('numero_analisis', '26P%')).catch(() => [])
+    setInfoPT({
+      stock: st,
+      demanda: dem.length ? { n: dem.length, archivo: dem[0].archivo, fecha: dem.reduce((m, p) => (p.actualizado_en > m ? p.actualizado_en : m), '').slice(0, 10) } : null,
+      ingresos: ing.length,
+      ultimoIngreso: ing.reduce((m, r) => (r.fecha_ingreso && r.fecha_ingreso > m ? r.fecha_ingreso : m), ''),
+    })
+  }
+  useEffect(() => { if (espacio === 'PT') cargarPT() }, [espacio])
   const despuesDeImportar = () => { cargar(); onImportado?.() }
 
   return (
@@ -47,13 +69,43 @@ export default function Archivos({ esEditor, onImportado }) {
       </div>
       {err && <div className="empty">No se pudo cargar el historial: {err}</div>}
 
-      <div className="arch-grid">
-        <TarjetaArchivo u={ultimo('programacion')} esEditor={esEditor} titulo="Órdenes de compra programadas" boton={<ImportButton onDone={despuesDeImportar} />} />
-        <TarjetaArchivo u={ultimo('ingresos')} esEditor={esEditor} titulo="Ingresos reales a almacén" boton={<ImportIngresosButton onDone={despuesDeImportar} />} />
-      </div>
-      <div className="pct" style={{ margin: '8px 2px 18px', whiteSpace: 'normal' }}>
-        La explosión de materiales y el stock del sistema se cargan desde la pestaña Explosión de materiales.
-      </div>
+      {espacio === 'PT' ? (
+        <>
+          <div className="arch-grid">
+            <div className="arch-card">
+              <div className="arch-ico"><Icono nombre="capas" tam={26} /></div>
+              <div className="arch-info">
+                <h3>Stock de producto terminado</h3>
+                <div className="arch-arch">Reporte de stock del sistema · se toma P01 + P02 + P19</div>
+                {infoPT?.stock ? <div className="arch-fecha">Reporte del {fdate(infoPT.stock.fecha)} · {infoPT.stock.mapa.size} productos</div> : <div className="dim">Todavía no se ha subido</div>}
+                {esEditor && <div className="arch-btn"><StockButton onDone={() => { cargarPT(); onImportado?.() }} /></div>}
+              </div>
+            </div>
+            <div className="arch-card">
+              <div className="arch-ico"><Icono nombre="grafico" tam={26} /></div>
+              <div className="arch-info">
+                <h3>Plan de ventas (demanda)</h3>
+                <div className="arch-arch">Tu Excel de cobertura · se lee la hoja DATOS (plan de ventas, lote y lead time)</div>
+                {infoPT?.demanda ? <div className="arch-fecha">{infoPT.demanda.archivo} · {infoPT.demanda.n} productos · cargado el {fdate(infoPT.demanda.fecha)}</div> : <div className="dim">Todavía no se ha subido</div>}
+                {esEditor && <div className="arch-btn"><DemandaPTButton onDone={() => cargarPT()} /></div>}
+              </div>
+            </div>
+          </div>
+          <div className="pct" style={{ margin: '8px 2px 18px', whiteSpace: 'normal' }}>
+            Los ingresos de producto terminado no se suben: se leen de los correos de Delphos.
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="arch-grid">
+            <TarjetaArchivo u={ultimo('programacion')} esEditor={esEditor} titulo="Órdenes de compra programadas" boton={<ImportButton onDone={despuesDeImportar} />} />
+            <TarjetaArchivo u={ultimo('ingresos')} esEditor={esEditor} titulo="Ingresos reales a almacén" boton={<ImportIngresosButton onDone={despuesDeImportar} />} />
+          </div>
+          <div className="pct" style={{ margin: '8px 2px 18px', whiteSpace: 'normal' }}>
+            La explosión de materiales y el stock del sistema se cargan desde la pestaña Explosión de materiales.
+          </div>
+        </>
+      )}
 
       <div className="arch-hist">
         <h3><Icono nombre="historial" tam={18} /> Historial de importaciones</h3>

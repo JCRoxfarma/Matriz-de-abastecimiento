@@ -612,3 +612,17 @@ a.btn-sm{text-decoration:none;display:inline-flex;align-items:center}
 .compensar b{color:var(--ink);font-weight:600}
 .fld label.compensar{display:flex;font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink2);margin-bottom:0}
 .fld label.compensar input{width:auto;flex:none}
+/* Dos espacios: Producto terminado con su propio color (verde azulado) */
+.wrap[data-espacio=PT]{--acc:#0b5e53;--acc2:#12806f;--accbg:#e4f3ef}
+.wrap[data-espacio=PT] .enc{border-top:4px solid #12806f}
+.wrap[data-espacio=ME] .enc{border-top:4px solid #00167b}
+.espacio-sel{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.espacio-sel button{font:inherit;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:8px;border:none;background:none;border-radius:9px;padding:10px 16px;cursor:pointer;color:var(--ink2)}
+.espacio-sel button:hover{color:var(--ink);background:var(--card)}
+.espacio-sel button.esp-ME.act{background:#00167b;color:#fff}
+.espacio-sel button.esp-PT.act{background:#0b5e53;color:#fff}
+@media (max-width:900px){.espacio-sel{width:100%}.espacio-sel button{flex:1;justify-content:center}}
+.enc{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center}
+@media (max-width:1100px){.enc{grid-template-columns:1fr}.enc-der{align-items:flex-start}}
+.cob-det{display:flex;flex-direction:column;gap:10px;padding:6px 4px 10px;font-size:12.5px;color:var(--ink2)}
+.cob-meses td,.cob-meses th{white-space:nowrap}

@@ -14,7 +14,7 @@ export default function StockButton({ onDone }) {
     setStatus('Empezando...')
     try {
       const r = await importarStock(file, setStatus)
-      setStatus(`Listo: ${r.materiales} materiales actualizados.`)
+      setStatus(`Listo: ${r.materiales} materiales de empaque${r.productosPT ? ` y ${r.productosPT} productos terminados (P01+P02+P19)` : ''} actualizados.${r.errorPT ? ' No se pudo guardar el stock de producto terminado: ' + r.errorPT : ''}`)
       onDone()
     } catch (err) {
       setStatus('Error: ' + err.message)

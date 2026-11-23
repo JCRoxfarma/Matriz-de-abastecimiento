@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { useSesion } from './lib/auth'
-import { fmt, fdate, nombreMes, enrich, withEntregas, categoriaDe, CATEGORIAS, SEM, EST_TAG, GES_TAG, CONF_TAG } from './lib/derive'
+import { fmt, fdate, nombreMes, enrich, withEntregas, categoriaDe, SEM, EST_TAG, GES_TAG, CONF_TAG } from './lib/derive'
 import { fetchAll } from './lib/importer'
 import Panel from './Panel'
 import EnviarRecordatorios from './EnviarRecordatorios'
@@ -9,6 +9,9 @@ import ComunicarAlmacen from './ComunicarAlmacen'
 import Archivos from './Archivos'
 import Icono from './Icono'
 import RangoFechas from './RangoFechas'
+import StockPT from './StockPT'
+import CoberturaPT from './CoberturaPT'
+import { sincronizarIngresosPT } from './lib/importer'
 import ExportButton from './ExportButton'
 import Explosion from './Explosion'
 import Indicadores from './Indicadores'
@@ -62,7 +65,7 @@ export default function App() {
   // La pestana abierta se guarda en la direccion (#oi, #indicadores...), asi
   // al actualizar la pagina (F5) se queda en la misma pestana, y el boton
   // Atras del navegador vuelve a la pestana anterior.
-  const VISTAS = ['oc', 'oi', 'explosion', 'indicadores', 'archivos']
+  const VISTAS = ['oc', 'oi', 'explosion', 'stockpt', 'cobpt', 'indicadores', 'archivos']
   const vistaDeUrl = () => { const h = window.location.hash.slice(1); return VISTAS.includes(h) ? h : 'oc' }
   const [vista, setVistaSt] = useState(vistaDeUrl)
   const setVista = v => { setVistaSt(v); if (window.location.hash.slice(1) !== v) window.location.hash = v }
@@ -94,7 +97,15 @@ export default function App() {
     setLoading(true)
     setErr(null)
     try {
-      const data = await fetchAll('programacion_oc', '*')
+      let data = await fetchAll('programacion_oc', '*')
+      // Producto terminado: los ingresos llegan desde los correos de Delphos
+      // (una tarea diaria los carga en ingresos_sistema), no desde un Excel.
+      // Si hay ingresos nuevos que aun no se repartieron en sus entregas, se
+      // reparten aqui (mismo calculo que al importar). Solo PT y solo editor.
+      if (perfil?.rol === 'editor') {
+        const recalculadas = await sincronizarIngresosPT(data).catch(() => 0)
+        if (recalculadas) data = await fetchAll('programacion_oc', '*')
+      }
       setRows(withEntregas(data.map(enrich)))
     } catch (e) {
       setErr(e.message)
@@ -122,10 +133,21 @@ export default function App() {
     setRows(prev => withEntregas(prev.map(r => r.id_entrega === id ? enrich({ ...r, ...patch }) : r).map(r => ({ ...r }))))
   }
 
-  // Categoria elegida arriba ('' = todas). Se recuerda en este navegador.
-  const [categoria, setCategoriaSt] = useState(() => { try { return localStorage.getItem('categoria') || '' } catch { return '' } })
-  const setCategoria = c => { setCategoriaSt(c); try { localStorage.setItem('categoria', c) } catch { /* sin almacenamiento */ } }
-  const rowsCat = useMemo(() => categoria ? rows.filter(r => categoriaDe(r) === categoria) : rows, [rows, categoria])
+  // Dos espacios separados (Johany, nov-2026): Material de empaque y
+  // Producto terminado. Cada uno con su color, sus pestanas y SOLO sus
+  // datos; no hay vista "Todos" para que nunca se crucen. Se recuerda en
+  // este navegador.
+  const [espacio, setEspacioSt] = useState(() => { try { return localStorage.getItem('espacio') === 'PT' ? 'PT' : 'ME' } catch { return 'ME' } })
+  const categoria = espacio === 'PT' ? 'Producto terminado' : 'Material de empaque'
+  const PESTANAS = espacio === 'PT'
+    ? [['oc', 'Seguimiento OC', 'caja'], ['oi', 'Seguimiento OI', 'portapapeles'], ['stockpt', 'Stock PT', 'capas'], ['cobpt', 'Cobertura PT', 'calendario'], ['indicadores', 'Indicadores', 'grafico'], ['archivos', 'Archivos', 'carpeta']]
+    : [['oc', 'Seguimiento OC', 'caja'], ['oi', 'Seguimiento OI', 'portapapeles'], ['explosion', 'Explosión de materiales', 'capas'], ['indicadores', 'Indicadores', 'grafico'], ['archivos', 'Archivos', 'carpeta']]
+  const vistaOk = PESTANAS.some(t => t[0] === vista) ? vista : 'oc'
+  const setEspacio = e => {
+    setEspacioSt(e); setSelectedId(null); limpiar()
+    try { localStorage.setItem('espacio', e) } catch { /* sin almacenamiento */ }
+  }
+  const rowsCat = useMemo(() => rows.filter(r => categoriaDe(r) === categoria), [rows, categoria])
   const rowsOC = useMemo(() => rowsCat.filter(r => r.origen !== 'Importado'), [rowsCat])
 
   function matchRow(r, skip) {
@@ -286,14 +308,21 @@ export default function App() {
   const esEditor = perfil.rol === 'editor'
 
   return (
-    <div className="wrap">
+    <div className="wrap" data-espacio={espacio}>
       <header className="enc">
         <div className="enc-izq">
           <img className="marca-img" src="/logo-roxfarma.png" alt="Roxfarma" />
           <div>
-            <h1>Seguimiento de materiales de empaque</h1>
-            <div className="sub">Órdenes de compra programadas y estado real de ingreso a almacén</div>
+            <h1>{espacio === 'PT' ? 'Seguimiento de producto terminado' : 'Seguimiento de materiales de empaque'}</h1>
+            <div className="sub">{espacio === 'PT' ? 'Compras de producto terminado (Cifarma, Gabblan), ingresos y stock P01 + P02 + P19' : 'Órdenes de compra programadas y estado real de ingreso a almacén'}</div>
           </div>
+        </div>
+        <div className="espacio-sel" role="tablist" aria-label="Espacio de trabajo">
+          {[['ME', 'Material de empaque', 'caja'], ['PT', 'Producto terminado', 'capas']].map(([id, lb, ic]) => (
+            <button key={id} role="tab" aria-selected={espacio === id} className={`esp-${id} ${espacio === id ? 'act' : ''}`} onClick={() => setEspacio(id)}>
+              <Icono nombre={ic} tam={18} /> {lb}
+            </button>
+          ))}
         </div>
         <div className="enc-der">
           <div className="usr">
@@ -308,27 +337,14 @@ export default function App() {
       </header>
 
       <nav className="tabs">
-        {[
-          ['oc', 'Seguimiento OC', 'caja'],
-          ['oi', 'Seguimiento OI', 'portapapeles'],
-          ['explosion', 'Explosión de materiales', 'capas'],
-          ['indicadores', 'Indicadores', 'grafico'],
-          ['archivos', 'Archivos', 'carpeta'],
-        ].map(([id, lb, ic]) => (
-          <button key={id} className={`tab ${vista === id ? 'act' : ''}`} onClick={() => setVista(id)}>
+        {PESTANAS.map(([id, lb, ic]) => (
+          <button key={id} className={`tab ${vistaOk === id ? 'act' : ''}`} onClick={() => setVista(id)}>
             <Icono nombre={ic} tam={17} /> {lb}
           </button>
         ))}
-        {vista !== 'explosion' && vista !== 'archivos' && (
-          <div className="cat-sel" role="group" aria-label="Categoría">
-            {[['', 'Todos'], ...CATEGORIAS.map(c => [c, c])].map(([v, lb]) => (
-              <button key={lb} className={categoria === v ? 'act' : ''} onClick={() => setCategoria(v)}>{lb}</button>
-            ))}
-          </div>
-        )}
       </nav>
 
-      {vista === 'oi' ? <SeguimientoOI categoria={categoria} /> : vista === 'explosion' ? <Explosion esEditor={esEditor} /> : vista === 'indicadores' ? <Indicadores rows={rowsCat} /> : vista === 'archivos' ? <Archivos esEditor={esEditor} onImportado={cargar} /> : <>
+      {vistaOk === 'oi' ? <SeguimientoOI key={espacio} categoria={categoria} /> : vistaOk === 'explosion' ? <Explosion esEditor={esEditor} /> : vistaOk === 'stockpt' ? <StockPT rows={rowsCat} /> : vistaOk === 'cobpt' ? <CoberturaPT rows={rowsCat} /> : vistaOk === 'indicadores' ? <Indicadores key={espacio} rows={rowsCat} categoria={categoria} /> : vistaOk === 'archivos' ? <Archivos esEditor={esEditor} espacio={espacio} onImportado={cargar} /> : <>
       {err && <div className="empty">No se pudo cargar la base: {err}</div>}
       {loading ? <div className="empty">Cargando...</div> : (
         <>
