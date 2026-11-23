@@ -117,6 +117,13 @@ de importaciones) (`app/src/lib/importer.js`), y:
   recibida), la línea queda con etiqueta ámbar "Desmedro", no sale en
   rechazos por proveedor ni pide nota de crédito, y Indicadores →
   Importaciones muestra el gasto por desmedro (precio × unidades dañadas).
+- **Tolerancia de cierre en OI (nov-2026):** en importaciones, si ya llegó
+  al menos el 90% de lo programado efectivo (faltante hasta 10%), la
+  entrega se cierra sola (`cierraPorToleranciaOI` en `derive.js`): sale
+  como "Cerrada dentro de tolerancia", etapa Completado, y en el reparto
+  del importador lo que llegue después pasa a la siguiente entrega. Las OC
+  locales siguen igual (margen 8%, solo si Johany la cierra a mano). El
+  OTIF no cambia: In Full sigue pidiendo 95%.
 - Cada importación recalcula `cant_ingresada`, `saldo_pendiente`,
   `pct_ingreso`, `estado_ingreso`, `fecha_real_ingreso` y `dias_atraso` en
   `programacion_oc`, cruzando por OC + SKU contra todos los eventos de

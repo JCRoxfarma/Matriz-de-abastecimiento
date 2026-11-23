@@ -1,3 +1,4 @@
+import { cierraPorToleranciaOI } from './derive'
 import * as XLSX from 'xlsx'
 import { supabase } from './supabaseClient'
 import { PROGRAMACION_COLUMNS, EDITABLE_ON_APP, INGRESOS_COLUMNS, INGRESOS_RAW_COLUMNS } from './schema'
@@ -150,6 +151,15 @@ export function calcularIngresos(entregas, eventosTodos) {
         acumuladoEnEntrega = 0
       }
     }
+    // OI: con al menos el 90% recibido, la entrega se da por cerrada y lo
+    // que llegue despues ya cuenta para la siguiente.
+    const actual = entregas[entregaIdx]
+    if (actual && cierraPorToleranciaOI(actual, programadoEfectivo(actual), acumuladoEnEntrega)) {
+      actual._fechaCompleta = ev.fecha_ingreso
+      actual._llenoTol = acumuladoEnEntrega
+      entregaIdx++
+      acumuladoEnEntrega = 0
+    }
   }
   const totalIngresado = eventos.reduce((a, e) => a + (e.cantidad_ingresada || 0), 0)
   let restanteGlobal = totalIngresado
@@ -163,7 +173,8 @@ export function calcularIngresos(entregas, eventosTodos) {
     const prog = programadoEfectivo(e)
     // Con desmedro, lo danado se da por cerrado: solo falta el resto.
     const desm = e.desmedro ? e.cant_rechazada : 0
-    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, Math.max(0, prog - desm))
+    const tope = e._llenoTol != null ? e._llenoTol : Math.max(0, prog - desm)
+    const fill = esUltima ? restanteGlobal : Math.min(restanteGlobal, tope)
     restanteGlobal -= fill
     const saldo = Math.max(0, prog - desm - fill)
     e.cant_ingresada = fill
@@ -173,7 +184,7 @@ export function calcularIngresos(entregas, eventosTodos) {
     // llego nada o porque llego solo una parte, para el seguimiento da lo
     // mismo, sigue Pendiente. La cantidad exacta que ya llego se sigue
     // viendo en Cant. Ingresada / Saldo pendiente / % de avance.
-    e.estado_ingreso = saldo > 0 ? 'Pendiente' : 'Completo'
+    e.estado_ingreso = saldo > 0 && e._llenoTol == null ? 'Pendiente' : 'Completo'
     e.fecha_real_ingreso = e._fechaCompleta || null
     e.dias_atraso = (e.fecha_real_ingreso && e.fecha_programada_ingreso)
       ? Math.max(0, Math.round((new Date(e.fecha_real_ingreso) - new Date(e.fecha_programada_ingreso)) / 864e5))
@@ -181,6 +192,7 @@ export function calcularIngresos(entregas, eventosTodos) {
     e.valor_ingresado = e.precio_unitario != null ? Math.round(e.precio_unitario * fill * 100) / 100 : null
     e.valor_pendiente = e.precio_unitario != null ? Math.round(e.precio_unitario * saldo * 100) / 100 : null
     delete e._fechaCompleta
+    delete e._llenoTol
   })
 }
 
@@ -365,7 +377,7 @@ export async function importarIngresos(file, onStep) {
 
   onStep?.('Calculando avance de cada entrega...')
   const entregas = await fetchAll('programacion_oc',
-    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro')
+    'id_entrega,oc,sku,tipo_documento,origen,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro')
   recalcularGrupos(entregas, [...existentesIng, ...ingresosNuevos])
 
   onStep?.('Guardando en la base de datos...')
@@ -405,7 +417,7 @@ export async function importarIngresos(file, onStep) {
 // esperar a subir otro Excel. Devuelve los cambios por id_entrega.
 export async function recalcularEntregasDe(oc, sku) {
   const entregas = await fetchAll('programacion_oc',
-    'id_entrega,oc,sku,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro',
+    'id_entrega,oc,sku,tipo_documento,origen,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro',
     q => q.eq('oc', oc).eq('sku', sku))
   const eventos = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema',
     q => q.eq('oc', oc).eq('codigo', sku))

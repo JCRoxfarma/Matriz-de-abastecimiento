@@ -33,6 +33,14 @@ export const CERRADAS = ['Cerrado', 'Orden Anulada']
 // que salte a la vista que puede afectar el abastecimiento.
 export const TOLERANCIA_MARGEN = 0.08
 
+// Importaciones (OI): si ya llego al menos el 90% de lo programado, la
+// entrega se cierra sola, sin esperar el faltante (decision de Johany,
+// nov-2026). Lo que falta se sigue viendo como cierre dentro de tolerancia.
+export const TOLERANCIA_OI = 0.10
+export const esOI = r => r?.tipo_documento === 'OI' || r?.origen === 'Importado'
+export const cierraPorToleranciaOI = (r, prog, recibido) =>
+  esOI(r) && prog > 0 && recibido > 0 && recibido < prog && recibido >= prog * (1 - TOLERANCIA_OI)
+
 export const SEM = {
   atrasado: { c: 'var(--red)', t: 't-red', l: 'Atrasado' },
   desviado: { c: 'var(--red)', t: 't-red', l: 'Cerrada fuera de tolerancia' },
@@ -110,13 +118,15 @@ export function enrich(r) {
   const desm = r.desmedro ? (r.cant_rechazada || 0) : 0
   const recibido = (r.cant_ingresada || 0) + desm
   const saldo = Math.max(0, progEfectivo - recibido)
-  const abierto = saldo > 0 && !CERRADAS.includes(r.estado_gestion)
-  const tol = CERRADAS.includes(r.estado_gestion) && saldo > 0
+  const autoOI = !CERRADAS.includes(r.estado_gestion) && cierraPorToleranciaOI(r, progEfectivo, recibido)
+  const abierto = saldo > 0 && !CERRADAS.includes(r.estado_gestion) && !autoOI
+  const tol = (CERRADAS.includes(r.estado_gestion) || autoOI) && saldo > 0
+  const margen = esOI(r) ? TOLERANCIA_OI : TOLERANCIA_MARGEN
   const dd = days(r.fecha_confirmada || r.fecha_programada_ingreso)
   const avance = progEfectivo ? Math.min(1, recibido / progEfectivo) : 0
   const desv = progEfectivo ? (recibido - progEfectivo) / progEfectivo : 0
-  const dentroTolerancia = tol && Math.abs(desv) <= TOLERANCIA_MARGEN
-  const fueraTolerancia = tol && Math.abs(desv) > TOLERANCIA_MARGEN
+  const dentroTolerancia = tol && Math.abs(desv) <= margen + 1e-9
+  const fueraTolerancia = tol && !dentroTolerancia
   let sem2
   if (dentroTolerancia) sem2 = 'tolerancia'
   else if (fueraTolerancia) sem2 = 'desviado'
@@ -157,7 +167,7 @@ export function enrich(r) {
   const rechazoPend = (r.cant_rechazada || 0) > 0 && abierto && !r.desmedro
   const tuvoRechazo = (r.cant_rechazada || 0) > 0 && !abierto && !r.desmedro
   const conDesmedro = !!r.desmedro && (r.cant_rechazada || 0) > 0
-  return { ...r, rechazoPend, tuvoRechazo, conDesmedro, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
+  return { ...r, autoOI, rechazoPend, tuvoRechazo, conDesmedro, estado_gestion: estadoGestion, estado_ingreso: estadoIngreso, estado_confirmacion, abierto, tol, dentroTolerancia, fueraTolerancia, dd, avance, desv, sem2, hist, fprog0, saldo_pendiente: saldo, progEfectivo }
 }
 
 // Categoria de cada linea. El Excel no trae el tipo: el producto terminado

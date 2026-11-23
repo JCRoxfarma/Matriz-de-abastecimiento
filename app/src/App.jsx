@@ -261,7 +261,7 @@ export default function App() {
       case 'desv': {
         if (!r.tol) return <span className="dim">-</span>
         const pc = r.desv * 100
-        return <span className={`tag ${r.dentroTolerancia ? 't-grn' : 't-red'}`} title={`Cerrada con ${pc > 0 ? 'exceso' : 'faltante'} de ${Math.abs(pc).toFixed(1)}% frente a lo programado${r.fueraTolerancia ? ' (supera el margen de 8%)' : ''}`}>{pc > 0 ? '+' : ''}{pc.toFixed(1)}%</span>
+        return <span className={`tag ${r.dentroTolerancia ? 't-grn' : 't-red'}`} title={`Cerrada con ${pc > 0 ? 'exceso' : 'faltante'} de ${Math.abs(pc).toFixed(1)}% frente a lo programado${r.fueraTolerancia ? ` (supera el margen de ${r.origen === 'Importado' ? '10' : '8'}%)` : ''}`}>{pc > 0 ? '+' : ''}{pc.toFixed(1)}%</span>
       }
       case 'estado_ingreso': return <span className={`tag ${EST_TAG[r.estado_ingreso] || 't-gry'}`}>{r.estado_ingreso}</span>
       case 'estado_gestion': return <>
