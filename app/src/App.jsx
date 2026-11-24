@@ -98,14 +98,6 @@ export default function App() {
     setErr(null)
     try {
       let data = await fetchAll('programacion_oc', '*')
-      // Producto terminado: los ingresos llegan desde los correos de Delphos
-      // (una tarea diaria los carga en ingresos_sistema), no desde un Excel.
-      // Si hay ingresos nuevos que aun no se repartieron en sus entregas, se
-      // reparten aqui (mismo calculo que al importar). Solo PT y solo editor.
-      if (perfil?.rol === 'editor') {
-        const recalculadas = await sincronizarIngresosPT(data).catch(() => 0)
-        if (recalculadas) data = await fetchAll('programacion_oc', '*')
-      }
       setRows(withEntregas(data.map(enrich)))
     } catch (e) {
       setErr(e.message)
@@ -120,6 +112,27 @@ export default function App() {
   // persona. Por eso se compara el id de usuario, no el objeto sesion
   // completo, para no recargar todo y que la pantalla no parpadee.
   useEffect(() => { if (sesion) cargar() }, [sesion?.user?.id])
+
+  // Producto terminado: los ingresos llegan desde los correos de Delphos
+  // (una tarea diaria los carga en ingresos_sistema), no desde un Excel.
+  // Si hay ingresos nuevos que aun no se repartieron en sus entregas, se
+  // reparten aqui (mismo calculo que al importar). Solo editor. Va en su
+  // propio efecto porque el perfil (rol) llega despues de la sesion: antes
+  // se revisaba el rol cuando todavia no estaba cargado y nunca repartia.
+  useEffect(() => {
+    if (!sesion || perfil?.rol !== 'editor') return
+    let vigente = true
+    ;(async () => {
+      try {
+        const data = await fetchAll('programacion_oc', '*')
+        const recalculadas = await sincronizarIngresosPT(data)
+        if (recalculadas && vigente) cargar()
+      } catch (e) {
+        console.error('No se pudieron repartir los ingresos de PT:', e)
+      }
+    })()
+    return () => { vigente = false }
+  }, [sesion?.user?.id, perfil?.rol])
 
   // Con ~500 filas, filtrar y redibujar la tabla en cada tecla se siente
   // trabado. Se espera un momento sin escribir antes de aplicar la
