@@ -125,7 +125,6 @@ export default function SeguimientoOI({ categoria = '' }) {
   // Mes de la fecha programada de ingreso (o la confirmada, si la hay), igual
   // que el filtro de mes de Seguimiento OC.
   const mesDe = r => (r.fecha_confirmada || r.fecha_programada_ingreso)?.slice(0, 7)
-  const meses = useMemo(() => [...new Set(rows.map(mesDe).filter(Boolean))].sort(), [rows])
 
   const kpis = useMemo(() => {
     const n = g => rows.filter(GRUPOS[g]).length
@@ -139,24 +138,35 @@ export default function SeguimientoOI({ categoria = '' }) {
     ]
   }, [rows])
 
-  const filtradas = useMemo(() => {
+  // Un mismo filtro para la tabla y para armar la lista de meses: los meses
+  // se calculan con todos los demas filtros aplicados (skip = 'mes'), asi
+  // con "Pendiente" solo salen los meses que de verdad tienen algo pendiente.
+  const pasa = (r, skip) => {
     const qq = q.trim().toLowerCase()
-    let out = rows.filter(r => {
-      if (qq) {
-        const busca = `${r.oc} ${r.sku} ${r.descripcion || ''} ${r.proveedor || ''} ${r.comprador || ''}`.toLowerCase()
-        if (!busca.includes(qq)) return false
-      }
-      if (fGrupo === 'rechazo' ? !r.rechazoPend : fGrupo && !GRUPOS[fGrupo](r)) return false
-      if (fEtapa && Number(fEtapa) !== r.etapa) return false
-      // Completo = la OI ya ingreso toda a almacen (etapa Completado);
-      // Pendiente = todavia en alguna etapa del proceso.
-      if (fEstado === 'Completo' && r.etapa !== 9) return false
-      if (fEstado === 'Pendiente' && r.etapa === 9) return false
-      if (fMes && mesDe(r) !== fMes) return false
-      if (fProv && r.proveedor !== fProv) return false
-      if (fComp && r.comprador !== fComp) return false
-      return true
-    })
+    if (qq) {
+      const busca = `${r.oc} ${r.sku} ${r.descripcion || ''} ${r.proveedor || ''} ${r.comprador || ''}`.toLowerCase()
+      if (!busca.includes(qq)) return false
+    }
+    if (fGrupo === 'rechazo' ? !r.rechazoPend : fGrupo && !GRUPOS[fGrupo](r)) return false
+    if (fEtapa && Number(fEtapa) !== r.etapa) return false
+    // Pendiente = la linea sigue abierta (queda saldo y no se cerro ni se
+    // anulo); Completo = todo lo demas. Igual que el Ingreso de Seguimiento
+    // OC. Antes Pendiente era "etapa distinta de Completado" y colaba
+    // lineas anuladas o cerradas a mano sin ingreso.
+    if (fEstado === 'Completo' && r.abierto) return false
+    if (fEstado === 'Pendiente' && !r.abierto) return false
+    if (skip !== 'mes' && fMes && mesDe(r) !== fMes) return false
+    if (fProv && r.proveedor !== fProv) return false
+    if (fComp && r.comprador !== fComp) return false
+    return true
+  }
+
+  const meses = useMemo(() => [...new Set(rows.filter(r => pasa(r, 'mes')).map(mesDe).filter(Boolean))].sort(),
+    [rows, q, fGrupo, fEtapa, fEstado, fProv, fComp])
+  useEffect(() => { if (fMes && !meses.includes(fMes)) setFMes('') }, [meses, fMes])
+
+  const filtradas = useMemo(() => {
+    let out = rows.filter(r => pasa(r))
     out.sort((a, b) => {
       if (a.rechazoPend !== b.rechazoPend) return a.rechazoPend ? -1 : 1
       let x = a[sortK], y = b[sortK]
