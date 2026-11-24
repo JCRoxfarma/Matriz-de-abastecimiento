@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   const token = req.query.token || req.body?.token
   const proveedor = verificarToken(token)
   if (!proveedor) {
-    return res.status(403).json({ error: 'Token invalido o expirado.' })
+    return res.status(403).json({ error: 'Token inválido o expirado.' })
   }
 
   if (req.method === 'GET') {
@@ -108,5 +108,5 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, confirmados: exitosos.length, errores })
   }
 
-  return res.status(405).json({ error: 'Metodo no permitido' })
+  return res.status(405).json({ error: 'Método no permitido' })
 }

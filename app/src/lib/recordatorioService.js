@@ -54,9 +54,9 @@ export async function registrarEnvio(proveedor, correo, entregas) {
 
 function diasTexto(r) {
   if (r.dd == null) return 'sin fecha'
-  if (r.dd < 0) return `${-r.dd} dia${-r.dd !== 1 ? 's' : ''} de atraso`
+  if (r.dd < 0) return `${-r.dd} día${-r.dd !== 1 ? 's' : ''} de atraso`
   if (r.dd === 0) return 'hoy'
-  return `faltan ${r.dd} dia${r.dd !== 1 ? 's' : ''}`
+  return `faltan ${r.dd} día${r.dd !== 1 ? 's' : ''}`
 }
 
 // Fecha que manda para los recordatorios: la que confirmo el proveedor si
@@ -139,11 +139,11 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
   }
   if (atrasadas > 0) {
     alerta += `<div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px">
-      <strong style="color:#dc2626">Atencion:</strong> Tiene <strong>${atrasadas}</strong> entrega${atrasadas > 1 ? 's' : ''} con fecha vencida. Favor coordinar la entrega a la brevedad.
+      <strong style="color:#dc2626">Atención:</strong> Tiene <strong>${atrasadas}</strong> entrega${atrasadas > 1 ? 's' : ''} con fecha vencida. Favor coordinar la entrega a la brevedad.
     </div>`
   } else if (proximas > 0) {
     alerta += `<div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:12px 16px;margin:16px 0;border-radius:4px">
-      <strong style="color:#b45309">Proximas:</strong> Tiene <strong>${proximas}</strong> entrega${proximas > 1 ? 's' : ''} programada${proximas > 1 ? 's' : ''} en los proximos 7 dias.
+      <strong style="color:#b45309">Próximas:</strong> Tiene <strong>${proximas}</strong> entrega${proximas > 1 ? 's' : ''} programada${proximas > 1 ? 's' : ''} en los próximos 7 días.
     </div>`
   }
 
@@ -158,7 +158,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
     </div>
     <div style="background:#ffffff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
       <p>Estimados <strong>${proveedor}</strong>,</p>
-      <p>Les recordamos que tienen las siguientes entregas de materiales de empaque pendientes de ingreso a nuestro almacen:</p>
+      <p>Les recordamos que tienen las siguientes entregas de materiales de empaque pendientes de ingreso a nuestro almacén:</p>
       ${alerta}
       <table style="border-collapse:collapse;width:100%;margin:16px 0;font-size:13px">
         <thead>
@@ -169,7 +169,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
             <th style="border:1px solid #00167b;padding:8px;text-align:right">Cantidad pendiente</th>
             <th style="border:1px solid #00167b;padding:8px">F. entrega</th>
             <th style="border:1px solid #00167b;padding:8px">Estado</th>
-            <th style="border:1px solid #00167b;padding:8px">Confirmacion</th>
+            <th style="border:1px solid #00167b;padding:8px">Confirmación</th>
           </tr>
         </thead>
         <tbody>
@@ -181,7 +181,7 @@ export function generarEmailHtml(proveedor, filas, linkConfirmacion) {
         <a href="${linkConfirmacion}" style="display:inline-block;background:#00167b;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600">Confirmar fechas de entrega</a>
         <div style="font-size:11px;color:#98a2b3;margin-top:8px">Haga clic para confirmar o modificar las fechas directamente</div>
       </div>` : ''}
-      <p style="margin-top:16px">Favor confirmar que las entregas se realizaran en las fechas indicadas. De existir algun cambio o retraso, agradeceré nos lo comuniquen a la brevedad para poder coordinarlo.</p>
+      <p style="margin-top:16px">Favor confirmar que las entregas se realizarán en las fechas indicadas. De existir algún cambio o retraso, agradeceré nos lo comuniquen a la brevedad para poder coordinarlo.</p>
       <p style="margin-top:24px">Saludos cordiales,</p>
       <p style="margin:4px 0"><strong>Johany Cueto</strong><br>
       Compras - Materiales de empaque<br>

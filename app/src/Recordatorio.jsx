@@ -18,7 +18,7 @@ function nombreCorto(clave) {
   return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${y}`
 }
 
-const COLS = ['OC', 'SKU', 'ENTREGA', 'MATERIAL', 'PROVEEDOR', 'CANTIDAD', 'FECHA PROGRAMADA', 'DIAS', 'ESTADO', 'GESTION']
+const COLS = ['OC', 'SKU', 'ENTREGA', 'MATERIAL', 'PROVEEDOR', 'CANTIDAD', 'FECHA PROGRAMADA', 'DÍAS', 'ESTADO', 'GESTIÓN']
 
 function dias(r) {
   if (r.dentroTolerancia) return 'tolerancia'

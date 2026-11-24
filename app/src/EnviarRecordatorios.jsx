@@ -15,7 +15,7 @@ function hace(iso) {
   const hrs = Math.floor(min / 60)
   if (hrs < 24) return `hace ${hrs}h`
   const dias = Math.floor(hrs / 24)
-  return `hace ${dias} dia${dias > 1 ? 's' : ''}`
+  return `hace ${dias} día${dias > 1 ? 's' : ''}`
 }
 
 const ALWAYS_CC = 'rramirez@roxfarma.com'
