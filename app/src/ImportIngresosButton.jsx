@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { importarIngresos } from './lib/importer'
+import { confirmarReutilizados, textoReutilizados } from './lib/confirmarReutilizados'
 
 export default function ImportIngresosButton({ onDone }) {
   const inputRef = useRef(null)
@@ -13,8 +14,8 @@ export default function ImportIngresosButton({ onDone }) {
     setBusy(true)
     setStatus('Empezando...')
     try {
-      const r = await importarIngresos(file, setStatus)
-      setStatus(`✓ ${file.name} subido con exito — ${r.ingresosNuevos} ingresos nuevos, ${r.entregasActualizadas} entregas revisadas${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}`)
+      const r = await importarIngresos(file, setStatus, confirmarReutilizados)
+      setStatus(`✓ ${file.name} subido con exito — ${r.ingresosNuevos} ingresos nuevos, ${r.entregasActualizadas} entregas revisadas${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}${textoReutilizados(r)}`)
       onDone()
     } catch (err) {
       setStatus('Error: ' + err.message)

@@ -219,10 +219,40 @@ function recalcularGrupos(entregas, eventos) {
 // Aprobado o Rechazado). Los ingresos nunca se pisan, salvo este estado:
 // devuelve los analisis ya guardados cuyo estado cambio en el archivo, y
 // actualiza la lista en memoria para que el calculo use el estado nuevo.
-function cambiosDeEstado(existentesIng, filasArchivo) {
+// Calidad a veces reutiliza un N° de analisis: anula un ingreso y le da su
+// numero a otro distinto (paso con ME0260001355 en nov-2026: era SAL
+// GRANULADA y despues un frasco de Euroform). Como el importador reconoce
+// cada ingreso por su numero, el nuevo se tomaba como repetido y no se
+// cargaba. Aqui se detectan los numeros que ya existen pero con otra OC u
+// otro codigo, para preguntar si se reemplazan.
+export function analisisReutilizados(existentesIng, filasArchivo) {
+  const porNumero = new Map(existentesIng.map(r => [r.numero_analisis, r]))
+  const out = new Map()
+  for (const f of filasArchivo) {
+    const prev = f.numero_analisis && porNumero.get(f.numero_analisis)
+    if (!prev || out.has(f.numero_analisis)) continue
+    const mismaOC = String(prev.oc ?? '') === String(f.oc ?? '')
+    const mismoCodigo = String(prev.codigo ?? '').trim() === String(f.codigo ?? '').trim()
+    if (!mismaOC || !mismoCodigo) out.set(f.numero_analisis, { numero_analisis: f.numero_analisis, antes: prev, ahora: f })
+  }
+  return [...out.values()]
+}
+
+// Pregunta (si hay a quien preguntar) y devuelve las filas que reemplazan
+// a las guardadas. Si no se acepta, esos numeros se dejan como estaban.
+async function resolverReutilizados(existentesIng, filasArchivo, confirmarReemplazo) {
+  const reutilizados = analisisReutilizados(existentesIng, filasArchivo)
+  const omitir = new Set(reutilizados.map(x => x.numero_analisis))
+  if (!reutilizados.length || !confirmarReemplazo) return { reutilizados, reemplazos: [], omitir }
+  const ok = await confirmarReemplazo(reutilizados)
+  return { reutilizados, reemplazos: ok ? reutilizados.map(x => x.ahora) : [], omitir }
+}
+
+function cambiosDeEstado(existentesIng, filasArchivo, omitir = new Set()) {
   const porNumero = new Map(existentesIng.map(r => [r.numero_analisis, r]))
   const cambios = new Map()
   for (const f of filasArchivo) {
+    if (omitir.has(f.numero_analisis)) continue
     const prev = f.numero_analisis && porNumero.get(f.numero_analisis)
     const nuevo = f.estado_ingreso_sistema == null ? '' : String(f.estado_ingreso_sistema).trim()
     if (!prev || !nuevo || nuevo === (prev.estado_ingreso_sistema || '')) continue
@@ -232,7 +262,7 @@ function cambiosDeEstado(existentesIng, filasArchivo) {
   return [...cambios.values()]
 }
 
-export async function importarExcel(file, onStep) {
+export async function importarExcel(file, onStep, confirmarReemplazo) {
   onStep?.('Leyendo el archivo...')
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array', cellDates: true })
@@ -262,7 +292,7 @@ export async function importarExcel(file, onStep) {
   const descripcionPorSku = new Map()
   for (const r of existentesProg) if (limpio(r.descripcion)) descripcionPorSku.set(String(r.sku), r.descripcion)
 
-  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
+  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,descripcion,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
   const numerosExistentes = new Set(existentesIng.map(r => r.numero_analisis))
 
   onStep?.('Preparando las entregas...')
@@ -329,7 +359,8 @@ export async function importarExcel(file, onStep) {
 
   onStep?.('Sumando los ingresos nuevos...')
   const filasIng = rawIng.map(raw => mapRow(raw, INGRESOS_COLUMNS))
-  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng)
+  const { reutilizados, reemplazos, omitir } = await resolverReutilizados(existentesIng, filasIng, confirmarReemplazo)
+  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng, omitir)
   const ingresosNuevosRaw = filasIng
     .filter(e => e.numero_analisis && !numerosExistentes.has(e.numero_analisis))
   // Igual que con las entregas, el Excel puede traer el mismo ingreso
@@ -337,17 +368,21 @@ export async function importarExcel(file, onStep) {
   const ingresosNuevos = [...new Map(ingresosNuevosRaw.map(e => [e.numero_analisis, e])).values()]
 
   onStep?.('Calculando avance de cada entrega...')
-  recalcularGrupos(entregasUnicas, [...existentesIng, ...ingresosNuevos])
+  const reempMap = new Map(reemplazos.map(r => [r.numero_analisis, r]))
+  recalcularGrupos(entregasUnicas, [...existentesIng.map(r => reempMap.get(r.numero_analisis) || r), ...ingresosNuevos])
 
   onStep?.('Guardando en la base de datos...')
   await upsertInBatches('programacion_oc', entregasUnicas, 'id_entrega')
   await insertInBatches('ingresos_sistema', ingresosNuevos)
+  if (reemplazos.length) await upsertInBatches('ingresos_sistema', reemplazos.map(r => ({ ...r, ingreso_acumulado: r.cantidad_ingresada })), 'numero_analisis')
   if (cambiosEstado.length) await upsertInBatches('ingresos_sistema', cambiosEstado, 'numero_analisis')
   await registrarImportacion('programacion', file.name, entregasUnicas.length)
 
   return {
     entregas: entregasUnicas.length,
     ingresosNuevos: ingresosNuevos.length,
+    reemplazados: reemplazos.length,
+    reutilizadosOmitidos: reutilizados.length - reemplazos.length,
     estadosActualizados: cambiosEstado.length,
   }
 }
@@ -355,7 +390,7 @@ export async function importarExcel(file, onStep) {
 // El archivo que Johany descarga aparte del sistema, con lo que entro
 // realmente a almacen. No trae la programacion de OC, asi que aqui solo se
 // agregan los ingresos nuevos y se recalculan las entregas ya guardadas.
-export async function importarIngresos(file, onStep) {
+export async function importarIngresos(file, onStep, confirmarReemplazo) {
   onStep?.('Leyendo el archivo...')
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array', cellDates: true })
@@ -364,12 +399,13 @@ export async function importarIngresos(file, onStep) {
   const rawIng = XLSX.utils.sheet_to_json(hoja, { defval: null })
 
   onStep?.('Revisando lo que ya tienes guardado...')
-  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
+  const existentesIng = await fetchAll('ingresos_sistema', 'numero_analisis,oc,codigo,descripcion,cantidad_ingresada,fecha_ingreso,estado_ingreso_sistema')
   const numerosExistentes = new Set(existentesIng.map(r => r.numero_analisis))
 
   onStep?.('Sumando los ingresos nuevos...')
   const filasIng = rawIng.map(raw => ({ ...mapRow(raw, INGRESOS_RAW_COLUMNS), archivo_origen_ingreso: file.name }))
-  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng)
+  const { reutilizados, reemplazos, omitir } = await resolverReutilizados(existentesIng, filasIng, confirmarReemplazo)
+  const cambiosEstado = cambiosDeEstado(existentesIng, filasIng, omitir)
   const ingresosNuevosRaw = filasIng
     .filter(e => e.numero_analisis && !numerosExistentes.has(e.numero_analisis))
   const ingresosNuevos = [...new Map(ingresosNuevosRaw.map(e => [e.numero_analisis, e])).values()]
@@ -378,10 +414,12 @@ export async function importarIngresos(file, onStep) {
   onStep?.('Calculando avance de cada entrega...')
   const entregas = await fetchAll('programacion_oc',
     'id_entrega,oc,sku,tipo_documento,origen,orden_entrega,cant_programada,ajuste_cantidad,precio_unitario,fecha_programada_ingreso,desmedro')
-  recalcularGrupos(entregas, [...existentesIng, ...ingresosNuevos])
+  const reempMap = new Map(reemplazos.map(r => [r.numero_analisis, r]))
+  recalcularGrupos(entregas, [...existentesIng.map(r => reempMap.get(r.numero_analisis) || r), ...ingresosNuevos])
 
   onStep?.('Guardando en la base de datos...')
   await insertInBatches('ingresos_sistema', ingresosNuevos)
+  if (reemplazos.length) await upsertInBatches('ingresos_sistema', reemplazos.map(r => ({ ...r, ingreso_acumulado: r.cantidad_ingresada })), 'numero_analisis')
   if (cambiosEstado.length) await upsertInBatches('ingresos_sistema', cambiosEstado, 'numero_analisis')
   const actualizaciones = entregas.map(e => ({
     id_entrega: e.id_entrega,
@@ -401,10 +439,12 @@ export async function importarIngresos(file, onStep) {
     fecha_rechazo: e.fecha_rechazo,
   }))
   await upsertInBatches('programacion_oc', actualizaciones, 'id_entrega')
-  await registrarImportacion('ingresos', file.name, ingresosNuevos.length)
+  await registrarImportacion('ingresos', file.name, ingresosNuevos.length + reemplazos.length)
 
   return {
     ingresosNuevos: ingresosNuevos.length,
+    reemplazados: reemplazos.length,
+    reutilizadosOmitidos: reutilizados.length - reemplazos.length,
     estadosActualizados: cambiosEstado.length,
     entregasActualizadas: entregas.length,
   }

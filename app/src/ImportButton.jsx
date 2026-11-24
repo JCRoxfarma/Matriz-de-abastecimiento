@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { importarExcel } from './lib/importer'
+import { confirmarReutilizados, textoReutilizados } from './lib/confirmarReutilizados'
 
 export default function ImportButton({ onDone }) {
   const inputRef = useRef(null)
@@ -13,8 +14,8 @@ export default function ImportButton({ onDone }) {
     setBusy(true)
     setStatus('Empezando...')
     try {
-      const r = await importarExcel(file, setStatus)
-      setStatus(`✓ ${file.name} subido con exito — ${r.entregas} entregas, ${r.ingresosNuevos} ingresos nuevos${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}`)
+      const r = await importarExcel(file, setStatus, confirmarReutilizados)
+      setStatus(`✓ ${file.name} subido con exito — ${r.entregas} entregas, ${r.ingresosNuevos} ingresos nuevos${r.estadosActualizados ? `, ${r.estadosActualizados} estados de calidad actualizados` : ''}${textoReutilizados(r)}`)
       onDone()
     } catch (err) {
       setStatus('Error: ' + err.message)

@@ -97,6 +97,14 @@ de importaciones) (`app/src/lib/importer.js`), y:
   por Johany, nov-2026):** el estado de calidad (`estado_ingreso_sistema`,
   columna `est`) de un análisis que ya existía sí se actualiza en cada
   importación (Espera → Aprobado / Rechazado). Cantidad y fecha nunca.
+  **Segunda excepción (aprobada por Johany, 24/11/2026): N° de análisis
+  reutilizado.** Si el archivo trae un `numero_analisis` que ya existe pero
+  con otra OC u otro código (Calidad anuló un ingreso y le dio su número a
+  otro, pasó con ME0260001355), el importador muestra un aviso y, si Johany
+  acepta, reemplaza el registro guardado (`analisisReutilizados` en
+  `importer.js`, aviso en `lib/confirmarReutilizados.js`). Si cancela, queda
+  como estaba. El arreglo puntual de ese caso está en
+  `supabase/2026-11-24_reemplazo_ME0260001355.sql`.
 - **Rechazos de calidad** (`supabase/rechazos.sql`): un lote `Rechazado` no
   cuenta como ingresado (almacén le da salida y el proveedor repone con la
   misma OC). El importador lo anota en la entrega que se estaba llenando
