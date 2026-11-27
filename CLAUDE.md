@@ -14,6 +14,14 @@ empaque. La usan compras, planeamiento y almacén.
   `lector` (cuentas recreadas el 16/11/2026 con clave temporal). Ricardo Zegarra (otro
   comprador) todavía no tiene cuenta: se agrega cuando Johany lo converse
   con él. No cambiar quién es editor sin que Johany lo pida.
+- **Rol `almacen` (27/11/2026, aprobado por Johany):** una cuenta de
+  Almacén que solo ve la pantalla "Próximos ingresos a almacén"
+  (`app/src/IngresosAlmacen.jsx`): entregas por llegar de OC, OI y producto
+  terminado (fecha, orden, entrega, código, material, proveedor, cantidad por
+  llegar, confirmada). No ve precios, gestión, stock, explosión ni archivos, y
+  no edita. Protección en la base (`supabase/almacen.sql`): todas las
+  tablas se leen solo si `es_interno()` (editor o lector); almacén lee
+  únicamente la función `ingresos_almacen()`.
 - **Todo gratis**: Supabase (base de datos) y Vercel (hosting), ambos en su
   capa gratuita.
 - El código de la aplicación vive en `app/` (React + Vite). No usa Tailwind,

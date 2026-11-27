@@ -18,6 +18,7 @@ import Indicadores from './Indicadores'
 import SeguimientoOI from './SeguimientoOI'
 import VerConfirmaciones from './VerConfirmaciones'
 import Login from './Login'
+import IngresosAlmacen from './IngresosAlmacen'
 import './App.css'
 
 const CAT_EST = ['Pendiente', 'Completo']
@@ -317,6 +318,8 @@ export default function App() {
     </div>
   )
   if (!perfil) return <div className="empty">Cargando tu perfil...</div>
+  // Almacen solo ve los ingresos por llegar (OC, OI y PT), nada mas.
+  if (perfil.rol === 'almacen') return <IngresosAlmacen perfil={perfil} />
 
   const esEditor = perfil.rol === 'editor'
 
