@@ -21,7 +21,8 @@ empaque. La usan compras, planeamiento y almacén.
   llegar, confirmada). No ve precios, gestión, stock, explosión ni archivos, y
   no edita. Protección en la base (`supabase/almacen.sql`): todas las
   tablas se leen solo si `es_interno()` (editor o lector); almacén lee
-  únicamente la función `ingresos_almacen()`.
+  únicamente la función `ingresos_almacen()`. Cuenta: almacen@roxfarma.com
+  (compartida por Almacén, creada el 27/11/2026).
 - **Todo gratis**: Supabase (base de datos) y Vercel (hosting), ambos en su
   capa gratuita.
 - El código de la aplicación vive en `app/` (React + Vite). No usa Tailwind,

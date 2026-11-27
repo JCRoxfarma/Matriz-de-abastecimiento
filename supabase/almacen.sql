@@ -67,3 +67,8 @@ $$;
 
 revoke all on function public.ingresos_almacen() from public, anon;
 grant execute on function public.ingresos_almacen() to authenticated;
+
+-- Cuenta de Almacen (creada por Johany en Authentication el 27/11/2026):
+-- insert into perfiles (id, email, nombre, rol)
+-- values ('9041bcac-ba80-424a-9b70-e8979ff67cd3', 'almacen@roxfarma.com', 'Almacén', 'almacen')
+-- on conflict (id) do update set rol = 'almacen', nombre = 'Almacén';
