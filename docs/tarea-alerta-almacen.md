@@ -4,7 +4,7 @@ Pedido de Almacén a Johany (25/11/2026). Tarea programada de Claude
 "Alerta de ingresos a almacén (ME)" (https://claude.ai/code/routines/trig_01UaLumjHBcTKWaQkqcGyiDA),
 lunes a viernes 1:50 p. m. (Lima), para que llegue a las 2 p. m. (pedido de Johany, 27/11/2026), con los conectores Microsoft 365 y Supabase.
 
-- Para: rrupay@roxfarma.com, gurodriguez@roxfarma.com, dmachado@roxfarma.com (jefes de almacén). CC: jcueto@roxfarma.com.
+- Para: rrupay@roxfarma.com, gurodriguez@roxfarma.com, dmachado@roxfarma.com (jefes de almacén). CC: jcueto@, cfalconi@ y rramirez@roxfarma.com (27/11/2026).
 - Contenido: entregas de material de empaque (OC y OI, sin CIFARMA ni GABBLAN)
   con saldo por llegar y fecha efectiva (confirmada o programada) en los
   próximos 2 días hábiles; aparte, las vencidas o de hoy que siguen pendientes.
