@@ -2,7 +2,7 @@
 
 Pedido de Almacén a Johany (25/11/2026). Tarea programada de Claude
 "Alerta de ingresos a almacén (ME)" (https://claude.ai/code/routines/trig_01UaLumjHBcTKWaQkqcGyiDA),
-lunes a viernes 2:50 p. m. (Lima), con los conectores Microsoft 365 y Supabase.
+lunes a viernes 1:50 p. m. (Lima), para que llegue a las 2 p. m. (pedido de Johany, 27/11/2026), con los conectores Microsoft 365 y Supabase.
 
 - Para: rrupay@roxfarma.com, gurodriguez@roxfarma.com, dmachado@roxfarma.com (jefes de almacén). CC: jcueto@roxfarma.com.
 - Contenido: entregas de material de empaque (OC y OI, sin CIFARMA ni GABBLAN)
@@ -23,3 +23,9 @@ Código, Material, Proveedor, Cantidad por llegar, Fecha confirmada. Un
 diseño con colores y bordes (como el recordatorio a proveedores) solo es
 posible generándolo en la app para que Johany lo envíe desde su Outlook.
 Antes de cambiar el formato, mandar primero una prueba solo a Johany.
+
+Actualización 27/11/2026: formato final "prueba 4": una tabla simple por
+cada día con su título ("Lunes 30/11/2026 (8 entregas)"), columnas Tipo,
+N° orden, Código, Material, Proveedor, Cantidad por llegar, Fecha
+confirmada. La tabla dibujada con caracteres (`pre`) se descartó porque se
+parte en pantallas angostas.
